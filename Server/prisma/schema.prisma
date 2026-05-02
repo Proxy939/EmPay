@@ -130,6 +130,7 @@ model Employee {
   attendances      Attendance[]
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
+  payslips         Payslip[]
 
   @@map("employees")
 }
@@ -233,3 +234,68 @@ model SystemConfig {
 
   @@map("system_config")
 }
+
+// ─── Payrun ─────────────────────────────────────────────────────────────
+
+enum PayrunStatus {
+  PENDING
+  IN_PROGRESS
+  VALIDATED
+  DONE
+}
+
+enum PayslipStatus {
+  PENDING
+  COMPUTED
+  VALIDATED
+  DONE
+}
+
+model Payrun {
+  id                String       @id @default(cuid())
+  name              String
+  periodStart       DateTime     @db.Date
+  periodEnd         DateTime     @db.Date
+  status            PayrunStatus @default(PENDING)
+  totalGross        Float        @default(0)
+  totalNet          Float        @default(0)
+  totalEmployerCost Float        @default(0)
+  createdById       String
+  payslips          Payslip[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@map("payruns")
+}
+
+model Payslip {
+  id               String        @id @default(cuid())
+  payrunId         String
+  payrun           Payrun        @relation(fields: [payrunId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee      @relation(fields: [employeeId], references: [id])
+  periodStart      DateTime      @db.Date
+  periodEnd        DateTime      @db.Date
+  workedDays       Float         @default(0)
+  paidLeaveDays    Float         @default(0)
+  unpaidLeaveDays  Float         @default(0)
+  totalPayableDays Float         @default(0)
+  basicWage        Float         @default(0)
+  grossAmount      Float         @default(0)
+  pfEmployee       Float         @default(0)
+  pfEmployer       Float         @default(0)
+  professionalTax  Float         @default(0)
+  tdsDeduction     Float         @default(0)
+  netAmount        Float         @default(0)
+  employerCost     Float         @default(0)
+  components       Json          @default("{}")
+  status           PayslipStatus @default(PENDING)
+  computedAt       DateTime?
+  validatedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([payrunId, employeeId])
+  @@map("payslips")
+}
+

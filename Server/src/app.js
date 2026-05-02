@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path   = require('path');
 
 const routes = require('./routes');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
@@ -18,6 +19,9 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ── Static Files ─────────────────────────────────────────────────────────────
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
