@@ -1,4 +1,4 @@
-// This is your Prisma schema file
+// ─── Prisma Schema — EmPay HRMS ───────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client-js"
@@ -9,13 +9,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Role enum — 4 distinct access levels in the system
+enum Role {
+  ADMIN           // Full access, creates other users
+  HR_OFFICER      // Manages profiles, attendance, leaves
+  PAYROLL_OFFICER // Manages payroll, payslips, time-off
+  EMPLOYEE        // View-only personal data, can apply for leave
+}
+
+// User — stores both Admin and Employee accounts
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  loginId            String   @unique          // Auto-generated: e.g. OIJODO20220001
+  name               String
+  email              String   @unique
+  phone              String   @unique
+  password           String                    // bcrypt hashed
+  role               Role     @default(EMPLOYEE)
+  companyName        String                    // Company the user belongs to
+  companyPrefix      String                    // First 2 letters of company name (e.g. "OI")
+  department         String?
+  designation        String?
+  joiningDate        DateTime @default(now())
+  basicSalary        Float    @default(0)      // Monthly base salary in INR
+  mustChangePassword Boolean  @default(false)  // true for system-created accounts (employees)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations (added as modules are built)
+  // attendance  Attendance[]
+  // leaves      Leave[]
+  // payrolls    Payroll[]
 
   @@map("users")
 }
