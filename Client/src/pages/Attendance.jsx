@@ -2,53 +2,35 @@ import { useState, useEffect } from 'react'
 import AttendanceDetailModal from '@/components/attendance/AttendanceDetailModal'
 import api from '@/lib/api'
 import Sidebar from '@/components/layout/Sidebar'
-import { useTheme } from '@/lib/theme'
+import { ChevronLeft, ChevronRight, Download, UserPlus, Users, AlertTriangle, Plane, MoreHorizontal, Search, Paperclip, MapPin } from 'lucide-react'
 
-// ── Theme-aware constants ──────────────────────────────────────────────────────
-function useC() {
-  const { colors } = useTheme()
-  return {
-    nav:      colors.card,
-    navBorder:colors.border,
-    teal:     '#00b4d8',
-    tealBg:   '#e0f7fc',
-    amber:    '#f59e0b',
-    orange:   '#f97316',
-    red:      '#ef4444',
-    green:    '#22c55e',
-    blue:     '#3b82f6',
-    blueLight:'#eff6ff',
-    orangeL:  '#fff7ed',
-    greenL:   '#f0fdf4',
-    white:    colors.card,
-    bg:       colors.bg,
-    text:     colors.text,
-    muted:    colors.muted,
-    border:   colors.border,
-    rowHover: colors.hover || '#f0f9ff',
-    pill:     colors.inputBg || '#f3f4f6',
-  }
-}
-
-// Static fallback C for module-level helpers that can't use hooks
+// ── Fixed light-theme design tokens (shadcn-aligned) ─────────────────────────
+// This page is intentionally locked to light mode — only the sidebar responds
+// to the theme toggle.
 const C = {
-  teal:     '#00b4d8',
-  tealBg:   '#e0f7fc',
-  amber:    '#f59e0b',
-  orange:   '#f97316',
-  red:      '#ef4444',
-  green:    '#22c55e',
-  blue:     '#3b82f6',
-  blueLight:'#eff6ff',
-  orangeL:  '#fff7ed',
-  greenL:   '#f0fdf4',
+  // Brand / accent
+  teal:     '#0ea5e9',   // sky-500
+  tealBg:   '#e0f2fe',   // sky-100
+  // Semantic
+  amber:    '#f59e0b',   // amber-500
+  orange:   '#f97316',   // orange-500
+  red:      '#ef4444',   // red-500
+  green:    '#22c55e',   // green-500
+  blue:     '#3b82f6',   // blue-500
+  // Surface
+  blueLight:'#eff6ff',   // blue-50
+  orangeL:  '#fff7ed',   // orange-50
+  greenL:   '#f0fdf4',   // green-50
   white:    '#ffffff',
-  bg:       '#f4f5f7',
-  text:     '#1a1d23',
-  muted:    '#6b7280',
-  border:   '#e5e7eb',
-  rowHover: '#f0f9ff',
-  pill:     '#f3f4f6',
+  bg:       '#f8fafc',   // slate-50
+  // Typography
+  text:     '#0f172a',   // slate-900
+  muted:    '#64748b',   // slate-500
+  // Borders & surfaces
+  border:   '#e2e8f0',   // slate-200
+  rowHover: '#f0f9ff',   // sky-50
+  pill:     '#f1f5f9',   // slate-100
+  headBg:   '#f8fafc',   // slate-50
 }
 
 const AVT_COLORS = ['#6C5CE7','#0984e3','#00b894','#e17055','#fdcb6e','#fd79a8','#00b4d8','#a29bfe','#55efc4']
@@ -118,39 +100,60 @@ function PageHeader({ currentDate, onPrev, onNext, onAdd, onReport, isPrivileged
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     }}>
       {/* Title */}
-      <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text }}>Attendance</h1>
+      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.3px' }}>Attendance</h1>
 
       {/* Date navigator */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button onClick={onPrev} style={navBtnStyle}>‹</button>
-        <span style={{ fontWeight: 700, fontSize: 14, color: C.text, minWidth: 200, textAlign: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button onClick={onPrev} style={navBtnStyle}>
+          <ChevronLeft size={14} />
+        </button>
+        <span style={{
+          fontWeight: 600, fontSize: 13, color: C.text,
+          minWidth: 210, textAlign: 'center',
+          padding: '5px 14px', borderRadius: 8,
+          border: `1px solid ${C.border}`, background: C.headBg,
+        }}>
           {label}
         </span>
-        <button onClick={onNext} style={navBtnStyle}>›</button>
+        <button onClick={onNext} style={navBtnStyle}>
+          <ChevronRight size={14} />
+        </button>
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {/* Outline button — Export CSV */}
         <button onClick={onReport} style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          padding: '8px 16px', borderRadius: 8,
-          border: `1px solid ${C.border}`, background: C.white,
-          color: C.text, fontWeight: 600, fontSize: 13, cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}>
-          📋 Attendance Report
+          padding: '0 16px', height: 36, borderRadius: 8,
+          border: `1.5px solid ${C.border}`, background: C.white,
+          color: C.muted, fontWeight: 600, fontSize: 13, cursor: 'pointer',
+          fontFamily: 'inherit', transition: 'all .15s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = C.headBg; e.currentTarget.style.color = C.text; e.currentTarget.style.borderColor = '#94a3b8' }}
+          onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.border }}
+        >
+          <Download size={14} strokeWidth={2.2} />
+          Export CSV
         </button>
+
+        {/* Primary button — Add Attendance */}
         {isPrivileged && (
-        <button onClick={onAdd} style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '8px 16px', borderRadius: 8,
-          border: 'none', background: C.teal,
-          color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-          fontFamily: 'inherit',
-          boxShadow: '0 2px 8px rgba(0,180,216,0.3)',
-        }}>
-          👤 Add
-        </button>
+          <button onClick={onAdd} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '0 16px', height: 36, borderRadius: 8,
+            border: 'none', background: '#0284c7',
+            color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+            fontFamily: 'inherit',
+            boxShadow: '0 1px 3px rgba(2,132,199,0.35)',
+            transition: 'background .15s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = '#0369a1'}
+            onMouseLeave={e => e.currentTarget.style.background = '#0284c7'}
+          >
+            <UserPlus size={14} strokeWidth={2.2} />
+            Add Attendance
+          </button>
         )}
       </div>
     </div>
@@ -158,9 +161,10 @@ function PageHeader({ currentDate, onPrev, onNext, onAdd, onReport, isPrivileged
 }
 
 const navBtnStyle = {
-  width: 28, height: 28, borderRadius: 6, border: `1px solid ${C.border}`,
-  background: C.white, cursor: 'pointer', fontSize: 16, color: C.muted,
-  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
+  width: 32, height: 32, borderRadius: 8, border: `1.5px solid ${C.border}`,
+  background: C.white, cursor: 'pointer', color: C.muted,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'all .15s',
 }
 
 // ── Summary Cards ────────────────────────────────────────────────────────────
@@ -175,30 +179,35 @@ function StatCol({ label, value, trend, positive }) {
   )
 }
 
-function SummaryCard({ icon, iconColor, iconBg, title, stats }) {
+function SummaryCard({ IconComponent, iconBg, iconColor, title, stats }) {
   return (
     <div style={{
-      background: C.white, borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      background: C.white, borderRadius: 12,
+      border: `1px solid ${C.border}`,
+      boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
       padding: '16px 20px', flex: 1,
       fontFamily: 'inherit',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 8,
+            width: 36, height: 36, borderRadius: 9,
             background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
           }}>
-            <span style={{ fontSize: 16 }}>{icon}</span>
+            {IconComponent && <IconComponent size={17} color={iconColor} strokeWidth={2.2} />}
           </div>
           <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{title}</span>
         </div>
-        <button style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: C.muted, fontSize: 18, lineHeight: 1 }}>···</button>
+        <button style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: C.muted, display:'flex', alignItems:'center' }}>
+          <MoreHorizontal size={16} />
+        </button>
       </div>
       <div style={{ display: 'flex' }}>
         {stats.map((s, i) => (
           <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : 'none', padding: '0 8px' }}>
-            <p style={{ margin: '0 0 2px', fontSize: 11, color: C.muted, fontWeight: 500 }}>{s.label}</p>
-            <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: C.text }}>{s.value}</p>
+            <p style={{ margin: '0 0 2px', fontSize: 11, color: C.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</p>
+            <p style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{s.value}</p>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: s.up === null ? C.muted : s.up ? '#16a34a' : C.red }}>{s.trend}</p>
           </div>
         ))}
@@ -212,15 +221,17 @@ function FilterBar({ search, onSearch, dateFrom, dateTo, onDateFrom, onDateTo, s
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
       <div style={{ position: 'relative', flex: '0 0 220px' }}>
-        <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.muted, pointerEvents: 'none' }}>🔍</span>
+        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: C.muted, display: 'flex' }}>
+          <Search size={13} strokeWidth={2} />
+        </span>
         <input value={search} onChange={e => onSearch(e.target.value)} placeholder="Search employee"
           style={{ width: '100%', height: 36, paddingLeft: 32, paddingRight: 12, borderRadius: 8, border: `1px solid ${C.border}`, background: '#f9fafb', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 12, color: C.muted }}>From</span>
-        <input type="date" value={dateFrom} onChange={e => onDateFrom(e.target.value)} style={{ height: 34, padding: '0 8px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, outline: 'none' }} />
+        <input type="date" value={dateFrom} onChange={e => onDateFrom(e.target.value)} style={{ height: 34, padding: '0 8px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, outline: 'none', background: '#fff', colorScheme: 'light' }} />
         <span style={{ fontSize: 12, color: C.muted }}>To</span>
-        <input type="date" value={dateTo} onChange={e => onDateTo(e.target.value)} style={{ height: 34, padding: '0 8px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, outline: 'none' }} />
+        <input type="date" value={dateTo} onChange={e => onDateTo(e.target.value)} style={{ height: 34, padding: '0 8px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, outline: 'none', background: '#fff', colorScheme: 'light' }} />
       </div>
       <select value={statusFilter} onChange={e => onStatus(e.target.value)}
         style={{ height: 34, padding: '0 10px', borderRadius: 20, border: `1px solid ${C.border}`, background: C.white, color: C.text, fontSize: 13, cursor: 'pointer', outline: 'none' }}>
@@ -241,7 +252,7 @@ function TH({ children }) {
       fontSize: 11, fontWeight: 700, color: C.muted,
       textTransform: 'uppercase', letterSpacing: '0.05em',
       borderBottom: `1px solid ${C.border}`,
-      background: '#fafafa', whiteSpace: 'nowrap',
+      background: C.headBg, whiteSpace: 'nowrap',
     }}>
       {children} <span style={{ opacity: 0.5, fontSize: 10 }}>⇅</span>
     </th>
@@ -296,16 +307,20 @@ function TRow({ row, even, onClick }) {
         {row.extra}
       </td>
 
-      {/* Profile */}
+      {/* Profile / Designation */}
       <td style={{ padding: '12px 16px' }}>
-        <span style={{ color: C.teal, fontSize: 12, cursor: 'pointer' }}>
-          📎 {row.profile}
+        <span style={{ color: C.teal, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Paperclip size={11} strokeWidth={2} />
+          {row.profile}
         </span>
       </td>
 
-      {/* Location */}
+      {/* Location / Department */}
       <td style={{ padding: '12px 16px', fontSize: 12, color: C.muted, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        📍 {row.location}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <MapPin size={11} strokeWidth={2} />
+          {row.location}
+        </span>
       </td>
 
       {/* Note */}
@@ -412,40 +427,40 @@ export default function Attendance() {
 
   const summaryCards = isPrivileged ? [
     {
-      icon: '📋', iconBg: C.blueLight, title: 'Present',
+      IconComponent: Users, iconBg: '#eff6ff', iconColor: '#3b82f6', title: 'Present',
       stats: [
         { label: 'Present',  value: summary.present  ?? 0, trend: 'Total checked in', up: true },
         { label: 'Half Day', value: summary.halfDay  ?? 0, trend: 'Less than 4 hrs',  up: null },
       ],
     },
     {
-      icon: '⚠️', iconBg: C.orangeL, title: 'Not Present',
+      IconComponent: AlertTriangle, iconBg: '#fff7ed', iconColor: '#f97316', title: 'Not Present',
       stats: [
-        { label: 'Absent',  value: summary.absent ?? 0, trend: 'No attendance',    up: false },
-        { label: 'Total',   value: summary.total  ?? 0, trend: 'Attendance records', up: null },
+        { label: 'Absent', value: summary.absent ?? 0, trend: 'No attendance',     up: false },
+        { label: 'Total',  value: summary.total  ?? 0, trend: 'Attendance records', up: null },
       ],
     },
     {
-      icon: '✈️', iconBg: C.greenL, title: 'My Month',
+      IconComponent: Plane, iconBg: '#f0fdf4', iconColor: '#16a34a', title: 'My Month',
       stats: [
-        { label: 'Days Present',   value: summary.daysPresent    ?? 0, trend: 'This month', up: true  },
-        { label: 'Leaves Taken',   value: summary.leavesCount    ?? 0, trend: 'Approved',   up: null  },
-        { label: 'Working Days',   value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri',  up: null  },
+        { label: 'Days Present', value: summary.daysPresent      ?? 0, trend: 'This month', up: true },
+        { label: 'Leaves',       value: summary.leavesCount      ?? 0, trend: 'Approved',   up: null },
+        { label: 'Work Days',    value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri',    up: null },
       ],
     },
   ] : [
     {
-      icon: '📋', iconBg: C.blueLight, title: 'My Attendance',
+      IconComponent: Users, iconBg: '#eff6ff', iconColor: '#3b82f6', title: 'My Attendance',
       stats: [
-        { label: 'Days Present',     value: summary.daysPresent     ?? 0, trend: 'This month', up: true },
-        { label: 'Leaves Taken',     value: summary.leavesCount     ?? 0, trend: 'Approved',   up: null },
-        { label: 'Total Work Days',  value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri',   up: null },
+        { label: 'Days Present',    value: summary.daysPresent      ?? 0, trend: 'This month', up: true },
+        { label: 'Leaves Taken',    value: summary.leavesCount      ?? 0, trend: 'Approved',   up: null },
+        { label: 'Total Work Days', value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri',    up: null },
       ],
     },
   ]
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'inherit' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'inherit', colorScheme: 'light' }}>
       <Sidebar />
 
       {/* Main */}
@@ -561,15 +576,20 @@ function AddAttendanceModal({ employees, onClose, onSaved }) {
     } finally { setSaving(false) }
   }
 
-  const ov = { position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center' }
-  const card = { background:'#fff', borderRadius:16, padding:28, width:420, boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }
-  const inp = { width:'100%', height:38, padding:'0 12px', borderRadius:8, border:`1px solid ${C.border}`, fontSize:13, color:C.text, outline:'none', boxSizing:'border-box' }
+  const ov = { position:'fixed', inset:0, zIndex:2000, background:'rgba(15,23,42,0.45)', display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(2px)' }
+  const card = { background:'#fff', borderRadius:12, padding:28, width:420, boxShadow:'0 8px 32px rgba(15,23,42,0.18)', border:`1px solid ${C.border}` }
+  const inp = { width:'100%', height:38, padding:'0 12px', borderRadius:8, border:`1px solid ${C.border}`, fontSize:13, color:C.text, outline:'none', boxSizing:'border-box', background:'#fff', transition:'border-color .15s' }
 
   return (
     <div onClick={onClose} style={ov}>
       <div onClick={e => e.stopPropagation()} style={card}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text }}>👤 Add Attendance</h2>
+          <h2 style={{ margin:0, fontSize:17, fontWeight:700, color:C.text, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ width:30, height:30, borderRadius:8, background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <UserPlus size={15} color='#3b82f6' strokeWidth={2.2} />
+            </span>
+            Add Attendance
+          </h2>
           <button onClick={onClose} style={{ border:'none', background:'transparent', fontSize:20, cursor:'pointer', color:C.muted }}>✕</button>
         </div>
         {error && <p style={{ color:C.red, fontSize:12, marginBottom:12 }}>{error}</p>}
@@ -595,7 +615,7 @@ function AddAttendanceModal({ employees, onClose, onSaved }) {
               <input type="time" value={checkOut} onChange={e => setCheckOut(e.target.value)} style={inp} />
             </div>
           </div>
-          <button onClick={save} disabled={saving} style={{ height:42, borderRadius:10, border:'none', background:C.teal, color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer', marginTop:4, opacity:saving?0.7:1 }}>
+          <button onClick={save} disabled={saving} style={{ height:42, borderRadius:8, border:'none', background:C.teal, color:'#fff', fontWeight:700, fontSize:14, cursor:saving?'not-allowed':'pointer', marginTop:4, opacity:saving?0.65:1, transition:'opacity .15s', boxShadow:`0 1px 3px rgba(14,165,233,0.4)` }}>
             {saving ? 'Saving…' : 'Save Attendance'}
           </button>
         </div>

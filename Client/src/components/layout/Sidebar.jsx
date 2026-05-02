@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { ChevronDown, LogOut, Settings, CreditCard, Users, Clock, PlaneTakeoff, Wallet, BarChart2, Moon, Sun } from 'lucide-react'
+import { ChevronDown, LogOut, Settings, CreditCard, Users, Clock, PlaneTakeoff, Wallet, BarChart2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible'
 import { useTheme } from '@/lib/theme'
@@ -30,7 +30,7 @@ const itemVariants = {
 }
 
 export default function Sidebar() {
-  const { colors: S, theme, toggle: toggleTheme } = useTheme()
+  const { colors: S } = useTheme()
   const navigate  = useNavigate()
   const location  = useLocation()
   const [isHovered, setIsHovered] = useState(false)
@@ -164,28 +164,7 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* Theme toggle */}
-        <motion.button
-          variants={itemVariants} initial="collapsed" animate={isHovered ? 'expanded' : 'collapsed'}
-          transition={{ delay: 0.3 }}
-          onClick={toggleTheme}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            width: '100%', border: 'none', cursor: 'pointer', textAlign: 'left',
-            padding: '9px 10px', borderRadius: 10,
-            background: 'transparent', color: S.muted,
-            fontWeight: 500, fontSize: 14,
-            transition: 'background .15s', marginTop: 4,
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = S.hover}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
-          {theme === 'dark'
-            ? <Sun size={16} strokeWidth={1.8} color={S.amber} style={{ flexShrink: 0 }} />
-            : <Moon size={16} strokeWidth={1.8} color={S.muted} style={{ flexShrink: 0 }} />
-          }
-          {isHovered && <span style={{ whiteSpace: 'nowrap' }}>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
-        </motion.button>
+
       </div>
 
       {/* User profile */}
@@ -268,26 +247,7 @@ export default function Sidebar() {
         </motion.button>
       )}
 
-      {/* Theme toggle (collapsed) */}
-      <motion.button
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.24 }}
-        title={theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
-        onClick={toggleTheme}
-        style={{
-          width: 40, height: 40, borderRadius: 10, border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'transparent', transition: 'background .15s',
-        }}
-        onMouseEnter={e => e.currentTarget.style.background = S.hover}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      >
-        {theme === 'dark'
-          ? <Sun size={17} strokeWidth={1.8} color={S.amber} />
-          : <Moon size={17} strokeWidth={1.8} color={S.muted} />
-        }
-      </motion.button>
+
 
       {/* Avatar at bottom */}
       <div style={{ marginTop: 'auto', borderTop: `1px solid ${S.border}`, paddingTop: 12, width: '100%', display: 'flex', justifyContent: 'center' }}>

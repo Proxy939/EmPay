@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (&:is([data-theme="dark"] *));
+
 
 /* ─── Light theme (default) ─────────────────────────────────────────────────── */
 :root {
@@ -56,48 +56,7 @@
   --sidebar-ring:               oklch(0.58 0.22 292 / 40%);
 }
 
-/* ─── Dark theme ─────────────────────────────────────────────────────────────── */
-[data-theme="dark"],
-.dark {
-  color-scheme: dark;
 
-  --background:           oklch(0.10 0.015 265);
-  --foreground:           oklch(0.97 0 0);
-
-  --card:                 oklch(0.14 0.018 265);
-  --card-foreground:      oklch(0.97 0 0);
-
-  --popover:              oklch(0.14 0.018 265);
-  --popover-foreground:   oklch(0.97 0 0);
-
-  --primary:              oklch(0.62 0.22 292);
-  --primary-foreground:   oklch(0.99 0 0);
-
-  --secondary:            oklch(0.20 0.025 265);
-  --secondary-foreground: oklch(0.85 0 0);
-
-  --muted:                oklch(0.18 0.020 265);
-  --muted-foreground:     oklch(0.58 0 0);
-
-  --accent:               oklch(0.20 0.025 265);
-  --accent-foreground:    oklch(0.97 0 0);
-
-  --destructive:          oklch(0.62 0.22 27);
-  --destructive-foreground: oklch(0.99 0 0);
-
-  --border:               oklch(1 0 0 / 9%);
-  --input:                oklch(1 0 0 / 10%);
-  --ring:                 oklch(0.58 0.22 292 / 60%);
-
-  --sidebar:                    oklch(0.12 0.018 265);
-  --sidebar-foreground:         oklch(0.97 0 0);
-  --sidebar-primary:            oklch(0.58 0.22 292);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent:             oklch(0.20 0.025 265);
-  --sidebar-accent-foreground:  oklch(0.97 0 0);
-  --sidebar-border:             oklch(1 0 0 / 8%);
-  --sidebar-ring:               oklch(0.58 0.22 292 / 50%);
-}
 
 @theme inline {
   --font-sans:    'Geist Variable', sans-serif;

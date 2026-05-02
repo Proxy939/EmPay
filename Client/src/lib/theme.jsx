@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext } from 'react'
 
-// ── Theme colour palettes ─────────────────────────────────────────────────────
+// ── Always light — dark theme removed ────────────────────────────────────────
 export const THEMES = {
   light: {
     bg:      '#f5f5f8',
@@ -20,24 +20,6 @@ export const THEMES = {
     inputBg: '#fafafa',
     tableBg: '#fafafa',
   },
-  dark: {
-    bg:      '#0d0d14',
-    card:    '#13131f',
-    text:    '#e2e2f0',
-    muted:   '#7a7a9a',
-    border:  '#222238',
-    accent:  '#8075f5',
-    accentL: '#1c1a30',
-    accentD: '#a09af8',
-    hover:   '#1a1a2c',
-    red:     '#ff6b6b',
-    redBg:   '#1a0d0d',
-    green:   '#00d9a3',
-    amber:   '#f9ca74',
-    shadow:  '0 1px 8px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4)',
-    inputBg: '#0f0f1a',
-    tableBg: '#0f0f1a',
-  },
 }
 
 const ThemeCtx = createContext({
@@ -47,33 +29,16 @@ const ThemeCtx = createContext({
 })
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('empay-theme') || 'light'
-    // Apply immediately to avoid flash-of-wrong-theme
-    const root = document.documentElement
-    root.setAttribute('data-theme', saved)
-    if (saved === 'dark') root.classList.add('dark')
-    else root.classList.remove('dark')
-    return saved
-  })
-
-  useEffect(() => {
-    localStorage.setItem('empay-theme', theme)
-    const root = document.documentElement
-    // Sync data-theme for CSS variables ([data-theme="dark"])
-    root.setAttribute('data-theme', theme)
-    // Sync .dark class for Tailwind dark: utilities
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-  }, [theme])
-
-  const toggle = () => setTheme(t => (t === 'light' ? 'dark' : 'light'))
+  // Always force light — clear any saved dark preference
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-theme', 'light')
+    document.documentElement.classList.remove('dark')
+    document.documentElement.style.colorScheme = 'light'
+    localStorage.removeItem('empay-theme')
+  }
 
   return (
-    <ThemeCtx.Provider value={{ theme, colors: THEMES[theme], toggle }}>
+    <ThemeCtx.Provider value={{ theme: 'light', colors: THEMES.light, toggle: () => {} }}>
       {children}
     </ThemeCtx.Provider>
   )
