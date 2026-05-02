@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import api from '@/lib/api'
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -38,54 +40,63 @@ const fmtMin = (totalMin) => {
   return h > 0 ? `${h}h ${m > 0 ? m + 'm' : ''}`.trim() : `${m}m`
 }
 
-// ── Day entries mock data ──────────────────────────────────────────────────────
-const makeDays = (overtimeApproved) => [
-  {
-    id: 'today', label: 'Today', date: '',
-    clockIn: '09:00 AM', clockOut: '09:12 PM', duration: '10h 12m',
-    overtimeApproval: !overtimeApproved, approved: overtimeApproved,
-    segments: [
-      { type: 'working', start: toMin(9,0),  end: toMin(12,10) },
-      { type: 'break',   start: toMin(12,10),end: toMin(13,0)  },
-      { type: 'working', start: toMin(13,0), end: toMin(17,0)  },
-      { type: 'overtime',start: toMin(17,0), end: toMin(19,0)  },
-    ],
-  },
-  {
-    id: 'thu18', label: 'Thursday, 18', date: '18',
-    clockIn: '—', clockOut: '—', duration: '—',
-    dayOff: true, approved: true,
-    segments: [],
-  },
-  {
-    id: 'wed17', label: 'Wednesday, 17', date: '17',
-    clockIn: '09:00 AM', clockOut: '05:00 PM', duration: '8 hour',
-    segments: [
-      { type: 'working', start: toMin(9,0),  end: toMin(12,10) },
-      { type: 'break',   start: toMin(12,10),end: toMin(13,0)  },
-      { type: 'working', start: toMin(13,0), end: toMin(17,0)  },
-    ],
-  },
-  {
-    id: 'tue16', label: 'Tuesday, 16', date: '16',
-    clockIn: '09:00 AM', clockOut: '07:12 PM', duration: '8 hour',
-    segments: [
-      { type: 'late',    start: toMin(9,0),  end: toMin(9,30)  },
-      { type: 'working', start: toMin(9,30), end: toMin(12,10) },
-      { type: 'break',   start: toMin(12,10),end: toMin(13,0)  },
-      { type: 'working', start: toMin(13,0), end: toMin(19,12) },
-    ],
-  },
-  {
-    id: 'mon15', label: 'Monday, 15', date: '15',
-    clockIn: '09:00 AM', clockOut: '05:00 PM', duration: '8 hour',
-    segments: [
-      { type: 'working', start: toMin(9,0),  end: toMin(12,10) },
-      { type: 'break',   start: toMin(12,10),end: toMin(13,0)  },
-      { type: 'working', start: toMin(13,0), end: toMin(17,0)  },
-    ],
-  },
-]
+// ── Helpers to build real segments from HH:MM strings ──────────────────────────
+function timeStrToMin(t) {
+  if (!t) return null
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+function to12(t) {
+  if (!t) return '—'
+  const [h, m] = t.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`
+}
+function fmtDuration(h) {
+  if (!h || h <= 0) return '—'
+  const hrs = Math.floor(h), mins = Math.round((h - hrs) * 60)
+  return `${hrs}h${mins > 0 ? ' ' + mins + 'm' : ''}`
+}
+function buildSegments(checkIn, checkOut, stdHours = 8) {
+  const inMin  = timeStrToMin(checkIn)
+  const outMin = timeStrToMin(checkOut)
+  if (!inMin) return []
+  const end = outMin || inMin + stdHours * 60
+  const stdEnd = inMin + stdHours * 60
+  const segs = []
+  if (end <= stdEnd) {
+    segs.push({ type: 'working', start: inMin, end })
+  } else {
+    segs.push({ type: 'working', start: inMin, end: stdEnd })
+    segs.push({ type: 'overtime', start: stdEnd, end })
+  }
+  return segs
+}
+function recordToDay(rec) {
+  const dateObj = new Date(rec.date)
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const isToday = new Date().toDateString() === dateObj.toDateString()
+  const label = isToday
+    ? 'Today'
+    : `${days[dateObj.getUTCDay()]}, ${dateObj.getUTCDate()} ${months[dateObj.getUTCMonth()]}`
+  const dayOff = rec.status === 'ON_LEAVE'
+  const absent = rec.status === 'ABSENT' && !rec.checkIn
+  return {
+    id:               rec.id,
+    label,
+    clockIn:          rec.checkIn  ? to12(rec.checkIn)  : '—',
+    clockOut:         rec.checkOut ? to12(rec.checkOut) : '—',
+    duration:         fmtDuration(rec.workingHours),
+    segments:         dayOff || absent ? [] : buildSegments(rec.checkIn, rec.checkOut),
+    dayOff,
+    absent,
+    overtimeApproval: (rec.extraHours > 0) && !rec.overtimeApproved,
+    approved:         rec.overtimeApproved || (!rec.extraHours && !dayOff && !absent && !!rec.checkIn),
+    extraHours:       rec.extraHours,
+    _recordId:        rec.id,
+  }
+}
 
 const SEG_STYLE = {
   working:  { bg: C.teal,   label: 'Working time' },
@@ -213,7 +224,7 @@ function TimelineBar({ segments, dayOff }) {
 }
 
 // ── Day Entry ─────────────────────────────────────────────────────────────────
-function DayEntry({ day, onApprove }) {
+function DayEntry({ day, onApprove, onReject }) {
   return (
     <div style={{
       background: C.white, borderRadius: 10,
@@ -229,7 +240,7 @@ function DayEntry({ day, onApprove }) {
           {day.overtimeApproval && (
             <>
               <span style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>Overtime approval</span>
-              <button style={{
+              <button onClick={onReject} style={{
                 padding: '4px 10px', borderRadius: 6,
                 border: `1px solid ${C.red}`, background: 'transparent',
                 color: C.red, fontSize: 12, fontWeight: 600, cursor: 'pointer',
@@ -285,23 +296,14 @@ function DayEntry({ day, onApprove }) {
 }
 
 // ── Monthly Stats ─────────────────────────────────────────────────────────────
-const STATS = [
-  { label: 'Day off',        value: 12, trend: '+12 vs last month', up: true  },
-  { label: 'Late clock-in',  value: 6,  trend: '−2 vs last month',  up: false },
-  { label: 'Late clock-out', value: 21, trend: '−12 vs last month', up: false },
-  { label: 'No clock-out',   value: 2,  trend: '+4 vs last month',  up: true  },
-  { label: 'Off time quota', value: 1,  trend: '0 vs last month',   up: null  },
-  { label: 'Absent',         value: 2,  trend: '0 vs last month',   up: null  },
-]
-
-function MonthlyStats() {
+function MonthlyStats({ stats }) {
   return (
     <div style={{
       display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)',
       background: '#f9fafb', borderRadius: 12, overflow: 'hidden',
       border: `1px solid ${C.border}`, marginBottom: 20,
     }}>
-      {STATS.map((s, i) => (
+      {stats.map((s, i) => (
         <div key={i} style={{
           padding: '14px 10px', textAlign: 'center',
           borderRight: i < 5 ? `1px solid ${C.border}` : 'none',
@@ -345,25 +347,83 @@ function Legend() {
 // ── Main Modal ────────────────────────────────────────────────────────────────
 export default function AttendanceDetailModal({
   isOpen, onClose,
-  employeeIndex = 0, totalEmployees = 56,
-  employee: employeeProp = null,  // real data from parent
+  employeeIndex = 0, totalEmployees = 1,
+  employee: employeeProp = null,
+  employeeId: employeeIdProp = null,
   onNext, onPrev,
 }) {
-  const [localIndex, setLocalIndex]             = useState(employeeIndex)
-  const [overtimeApproved, setOvertimeApproved] = useState(false)
-  const [searchQuery, setSearchQuery]           = useState('')
-  const [currentMonth, setCurrentMonth]         = useState({ month: new Date().getMonth(), year: new Date().getFullYear() })
+  const navigate = useNavigate()
+  const [overtimeStates, setOvertimeStates] = useState({}) // recordId -> true/false
+  const [searchQuery,    setSearchQuery]    = useState('')
+  const [statusFilter,   setStatusFilter]   = useState('')
+  const [currentMonth,   setCurrentMonth]   = useState({ month: new Date().getMonth(), year: new Date().getFullYear() })
+  const [records,        setRecords]        = useState([])
+  const [summary,        setSummary]        = useState({})
+  const [loading,        setLoading]        = useState(false)
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-  // Use real employee data if provided, fall back to mock
-  const employee = employeeProp || MOCK_EMPLOYEES[localIndex % MOCK_EMPLOYEES.length]
-  const days     = makeDays(overtimeApproved)
+  const employee = employeeProp || MOCK_EMPLOYEES[0]
+  const employeeId = employeeIdProp || employee?.id
 
-  const handlePrev = () => setLocalIndex(i => Math.max(0, i - 1))
-  const handleNext = () => setLocalIndex(i => Math.min(MOCK_EMPLOYEES.length - 1, i + 1))
-  const prevMonth  = () => setCurrentMonth(m => m.month === 0 ? { month: 11, year: m.year - 1 } : { month: m.month - 1, year: m.year })
-  const nextMonth  = () => setCurrentMonth(m => m.month === 11 ? { month: 0, year: m.year + 1 } : { month: m.month + 1, year: m.year })
+  // Fetch real monthly data when modal opens or month changes
+  useEffect(() => {
+    if (!isOpen || !employeeId) return
+    setLoading(true)
+    api.get(`/attendance/employee/${employeeId}?month=${currentMonth.month + 1}&year=${currentMonth.year}`)
+      .then(r => {
+        setRecords(r.data.records || [])
+        setSummary(r.data.summary || {})
+        // Seed overtimeStates from fetched data
+        const states = {}
+        ;(r.data.records || []).forEach(rec => { states[rec.id] = rec.overtimeApproved })
+        setOvertimeStates(states)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [isOpen, employeeId, currentMonth.month, currentMonth.year])
+
+  // Approve / reject overtime via API
+  const handleOvertime = async (recordId, approve) => {
+    try {
+      await api.patch(`/attendance/${recordId}/overtime`, { approved: approve })
+      setOvertimeStates(s => ({ ...s, [recordId]: approve }))
+    } catch {}
+  }
+
+  const prevMonth = () => setCurrentMonth(m => m.month === 0  ? { month: 11, year: m.year - 1 } : { month: m.month - 1, year: m.year })
+  const nextMonth = () => setCurrentMonth(m => m.month === 11 ? { month: 0,  year: m.year + 1 } : { month: m.month + 1, year: m.year })
+
+  // Build day entries from real records, apply overtime state overrides
+  const days = records
+    .map(rec => {
+      const d = recordToDay(rec)
+      const approved = overtimeStates[rec.id] ?? rec.overtimeApproved
+      return {
+        ...d,
+        overtimeApproval: (rec.extraHours > 0) && !approved,
+        approved: approved || (!rec.extraHours && !d.dayOff && !d.absent && !!rec.checkIn),
+      }
+    })
+    .filter(d => {
+      const matchSearch = !searchQuery || d.label.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchStatus = !statusFilter ||
+        (statusFilter === 'Present' && !d.dayOff && !d.absent && d.clockIn !== '—') ||
+        (statusFilter === 'Absent'  && d.absent) ||
+        (statusFilter === 'Leave'   && d.dayOff) ||
+        (statusFilter === 'Overtime' && (d.extraHours > 0))
+      return matchSearch && matchStatus
+    })
+
+  // Real computed stats
+  const stats = [
+    { label: 'Days Present',   value: summary.daysPresent    ?? 0, trend: 'This month', up: null },
+    { label: 'Overtime days',  value: summary.overtimeCount  ?? 0, trend: 'With extra hours', up: null },
+    { label: 'Leaves',         value: summary.leavesCount    ?? 0, trend: 'Approved leaves', up: null },
+    { label: 'No clock-out',   value: records.filter(r => r.checkIn && !r.checkOut).length, trend: 'Missing checkout', up: null },
+    { label: 'Absent',         value: records.filter(r => r.status === 'ABSENT').length, trend: 'No show', up: null },
+    { label: 'Working Days',   value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri', up: null },
+  ]
 
   if (!isOpen) return null
 
@@ -399,10 +459,10 @@ export default function AttendanceDetailModal({
         }}>
           {/* Prev / Next + counter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={handlePrev} disabled={localIndex === 0} style={navCircleBtn}>‹</button>
-            <button onClick={handleNext} disabled={localIndex === MOCK_EMPLOYEES.length - 1} style={navCircleBtn}>›</button>
+            <button onClick={onPrev} disabled={employeeIndex === 0} style={navCircleBtn}>‹</button>
+            <button onClick={onNext} disabled={employeeIndex === totalEmployees - 1} style={navCircleBtn}>›</button>
             <span style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
-              {localIndex + 1} out of {totalEmployees}
+              {employeeIndex + 1} out of {totalEmployees}
             </span>
           </div>
 
@@ -450,7 +510,7 @@ export default function AttendanceDetailModal({
 
             {/* Right: action buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <button style={{
+              <button onClick={() => employeeId && navigate(`/employees/${employeeId}`)} style={{
                 padding: '8px 14px', borderRadius: 8,
                 border: `1px solid ${C.border}`, background: C.white,
                 color: C.text, fontSize: 12, fontWeight: 600, cursor: 'pointer',
@@ -472,8 +532,12 @@ export default function AttendanceDetailModal({
             </div>
           </div>
 
-          {/* ── Monthly Stats ── */}
-          <MonthlyStats />
+          {/* Monthly Stats - real data */}
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: C.muted, fontSize: 13 }}>Loading attendance data…</div>
+          ) : (
+            <MonthlyStats stats={stats} />
+          )}
 
           {/* ── Calendar Section Header ── */}
           <div style={{
@@ -520,12 +584,15 @@ export default function AttendanceDetailModal({
           {/* ── Legend ── */}
           <Legend />
 
-          {/* ── Day Entries ── */}
-          {days.map(day => (
+          {/* Day Entries - real data with real approve/reject */}
+          {loading ? null : days.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px', color: C.muted, fontSize: 13 }}>No records for this month.</div>
+          ) : days.map(day => (
             <DayEntry
               key={day.id}
               day={day}
-              onApprove={() => setOvertimeApproved(true)}
+              onApprove={() => handleOvertime(day._recordId, true)}
+              onReject={()  => handleOvertime(day._recordId, false)}
             />
           ))}
         </div>
