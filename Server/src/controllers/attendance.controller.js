@@ -231,12 +231,147 @@ const getDayAttendance = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// ─── ADD MANUAL ATTENDANCE (Admin / HR) ─────────────────────────────────────────────
+// Route: POST /api/attendance/manual
+// Body:  { employeeId, date, checkIn (HH:MM), checkOut (HH:MM) }
+const addManualAttendance = async (req, res, next) => {
+  try {
+    const { employeeId, date, checkIn: checkInStr, checkOut: checkOutStr } = req.body;
+
+    if (!employeeId || !date || !checkInStr) {
+      return res.status(400).json({ message: 'employeeId, date and checkIn are required' });
+    }
+
+    // Validate employee exists
+    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+    const day = toUTCDay(date);
+
+    // Build full DateTime from date + HH:MM
+    const buildDT = (dayDt, timeStr) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      const dt = new Date(dayDt);
+      dt.setUTCHours(h, m, 0, 0);
+      return dt;
+    };
+
+    const checkInDT  = buildDT(day, checkInStr);
+    const checkOutDT = checkOutStr ? buildDT(day, checkOutStr) : null;
+
+    // Calculate hours
+    let workingHours = null, extraHours = null, status = 'PRESENT';
+    if (checkOutDT) {
+      const ms = checkOutDT - checkInDT;
+      workingHours = +(ms / (1000 * 60 * 60)).toFixed(2);
+      const stdConfig = await prisma.systemConfig.findUnique({ where: { key: 'standard_daily_hours' } });
+      const std = stdConfig ? parseFloat(stdConfig.value) : 8;
+      extraHours = +(workingHours - std).toFixed(2);
+      if (workingHours < 2) status = 'ABSENT';
+      else if (workingHours < 4) status = 'HALF_DAY';
+    }
+
+    // Upsert — overwrite if record exists for this day
+    const record = await prisma.attendance.upsert({
+      where: { employeeId_date: { employeeId, date: day } },
+      create: { employeeId, date: day, checkIn: checkInDT, checkOut: checkOutDT, workingHours, extraHours, status },
+      update: { checkIn: checkInDT, checkOut: checkOutDT, workingHours, extraHours, status },
+    });
+
+    res.status(201).json({ message: 'Attendance saved', attendance: record });
+  } catch (error) { next(error); }
+};
+
+// ─── GET EMPLOYEE ATTENDANCE (Admin view any employee's monthly records) ──────
+// Route: GET /api/attendance/employee/:employeeId?month=5&year=2026
+const getEmployeeAttendance = async (req, res, next) => {
+  try {
+    const { employeeId } = req.params;
+    const month = parseInt(req.query.month) || new Date().getMonth() + 1;
+    const year  = parseInt(req.query.year)  || new Date().getFullYear();
+
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      include: { user: { select: { loginId: true, email: true, role: true } } },
+    });
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate   = new Date(Date.UTC(year, month, 0));
+
+    const records = await prisma.attendance.findMany({
+      where: { employeeId, date: { gte: startDate, lte: endDate } },
+      orderBy: { date: 'desc' },
+    });
+
+    const leavesCount   = await prisma.leaveRequest.count({
+      where: { employeeId, status: 'APPROVED', startDate: { lte: endDate }, endDate: { gte: startDate } },
+    });
+    const daysPresent     = records.filter(r => r.status === 'PRESENT' || r.status === 'HALF_DAY').length;
+    const overtimeCount   = records.filter(r => r.extraHours > 0).length;
+    const totalWorkingDays = countWorkingDays(year, month);
+
+    const formatted = records.map(r => ({
+      id:           r.id,
+      date:         r.date,
+      checkIn:      fmtTime(r.checkIn),
+      checkOut:     fmtTime(r.checkOut),
+      workingHours: r.workingHours,
+      extraHours:   r.extraHours,
+      status:       r.status,
+      overtimeApproved: r.overtimeApproved ?? false,
+    }));
+
+    res.json({
+      employee: {
+        id:          employee.id,
+        name:        `${employee.firstName} ${employee.lastName}`,
+        loginId:     employee.user?.loginId,
+        designation: employee.designation,
+        department:  employee.department,
+        role:        employee.user?.role,
+      },
+      records: formatted,
+      summary: { daysPresent, leavesCount, overtimeCount, totalWorkingDays },
+      month, year,
+    });
+  } catch (error) { next(error); }
+};
+
+// ─── APPROVE / REJECT OVERTIME ────────────────────────────────────────────────
+// Route: PATCH /api/attendance/:id/overtime
+// Body: { approved: true | false }
+const approveOvertime = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { approved } = req.body;
+
+    const record = await prisma.attendance.findUnique({ where: { id } });
+    if (!record) return res.status(404).json({ message: 'Attendance record not found' });
+    if (!record.extraHours || record.extraHours <= 0) {
+      return res.status(400).json({ message: 'This record has no overtime' });
+    }
+
+    const updated = await prisma.attendance.update({
+      where: { id },
+      data: { overtimeApproved: approved },
+    });
+
+    res.json({
+      message: approved ? 'Overtime approved' : 'Overtime rejected',
+      attendance: updated,
+    });
+  } catch (error) { next(error); }
+};
+
 module.exports = {
   checkIn,
   checkOut,
   getMyStatus,
   getMyAttendance,
   getDayAttendance,
-  // Keep old name as alias so existing routes still work
+  addManualAttendance,
+  getEmployeeAttendance,
+  approveOvertime,
   getTodayPresent: getDayAttendance,
 };

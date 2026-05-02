@@ -172,6 +172,7 @@ model Attendance {
   checkOut       DateTime?
   workingHours   Float?
   extraHours     Float?
+  overtimeApproved Boolean @default(false)
   status         AttendanceStatus @default(PRESENT)
   notes          String?
 

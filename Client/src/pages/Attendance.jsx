@@ -49,18 +49,30 @@ function fmtH(h) {
   return `${hrs}h${mins > 0 ? ' ' + mins + 'm' : ''}`
 }
 
-// Parse clock time to determine color
+// Helpers
+function to12hr(t) {
+  if (!t) return '—'
+  const [h, m] = t.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`
+}
+function fmtH(h) {
+  if (!h || h <= 0) return '—'
+  return `${Math.floor(h)}h${Math.round((h-Math.floor(h))*60) > 0 ? ' '+Math.round((h-Math.floor(h))*60)+'m' : ''}`
+}
 function clockInColor(t) {
-  const h = parseInt(t.split(':')[0])
-  const ampm = t.split(' ')[1]
-  const hour24 = ampm === 'PM' && h !== 12 ? h + 12 : (ampm === 'AM' && h === 12 ? 0 : h)
-  return hour24 > 9 ? C.orange : C.text
+  if (!t || t === '—') return C.muted
+  const [time, ampm] = t.split(' ')
+  const h = parseInt(time.split(':')[0])
+  const h24 = ampm === 'PM' && h !== 12 ? h+12 : (ampm === 'AM' && h === 12 ? 0 : h)
+  return isNaN(h24) ? C.muted : h24 > 9 ? C.orange : C.text
 }
 function clockOutColor(t) {
-  const h = parseInt(t.split(':')[0])
-  const ampm = t.split(' ')[1]
-  const hour24 = ampm === 'PM' && h !== 12 ? h + 12 : (ampm === 'AM' && h === 12 ? 0 : h)
-  return hour24 < 18 ? C.red : C.text
+  if (!t || t === '—') return C.muted
+  const [time, ampm] = t.split(' ')
+  const h = parseInt(time.split(':')[0])
+  const h24 = ampm === 'PM' && h !== 12 ? h+12 : (ampm === 'AM' && h === 12 ? 0 : h)
+  return isNaN(h24) ? C.muted : h24 < 18 ? C.red : C.text
 }
 
 // ── Avatar ───────────────────────────────────────────────────────────────────
@@ -150,7 +162,7 @@ function TopNav({ activeTab, setActiveTab }) {
 }
 
 // ── Page Header ──────────────────────────────────────────────────────────────
-function PageHeader({ currentDate, onPrev, onNext }) {
+function PageHeader({ currentDate, onPrev, onNext, onAdd, onReport, isPrivileged }) {
   const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December']
   const d      = currentDate
@@ -177,7 +189,7 @@ function PageHeader({ currentDate, onPrev, onNext }) {
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 10 }}>
-        <button style={{
+        <button onClick={onReport} style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 16px', borderRadius: 8,
           border: `1px solid ${C.border}`, background: C.white,
@@ -186,7 +198,8 @@ function PageHeader({ currentDate, onPrev, onNext }) {
         }}>
           📋 Attendance Report
         </button>
-        <button style={{
+        {isPrivileged && (
+        <button onClick={onAdd} style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 16px', borderRadius: 8,
           border: 'none', background: C.teal,
@@ -196,6 +209,7 @@ function PageHeader({ currentDate, onPrev, onNext }) {
         }}>
           👤 Add
         </button>
+        )}
       </div>
     </div>
   )
@@ -240,17 +254,10 @@ function SummaryCard({ icon, iconColor, iconBg, title, stats }) {
       </div>
       <div style={{ display: 'flex' }}>
         {stats.map((s, i) => (
-          <div key={i} style={{
-            flex: 1, textAlign: 'center',
-            borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : 'none',
-            padding: '0 8px',
-          }}>
+          <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : 'none', padding: '0 8px' }}>
             <p style={{ margin: '0 0 2px', fontSize: 11, color: C.muted, fontWeight: 500 }}>{s.label}</p>
             <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: C.text }}>{s.value}</p>
-            <p style={{
-              margin: 0, fontSize: 11, fontWeight: 500,
-              color: s.trend.startsWith('0') ? C.muted : s.up ? '#16a34a' : C.red,
-            }}>{s.trend}</p>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: s.up === null ? C.muted : s.up ? '#16a34a' : C.red }}>{s.trend}</p>
           </div>
         ))}
       </div>
@@ -259,42 +266,29 @@ function SummaryCard({ icon, iconColor, iconBg, title, stats }) {
 }
 
 // ── Filter Bar ───────────────────────────────────────────────────────────────
-function FilterBar({ search, onSearch }) {
+function FilterBar({ search, onSearch, dateFrom, dateTo, onDateFrom, onDateTo, statusFilter, onStatus }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
-      fontFamily: "'DM Sans', sans-serif",
-    }}>
-      {/* Search */}
-      <div style={{ position: 'relative', flex: '0 0 260px' }}>
-        <span style={{
-          position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
-          fontSize: 14, color: C.muted, pointerEvents: 'none',
-        }}>🔍</span>
-        <input
-          value={search} onChange={e => onSearch(e.target.value)}
-          placeholder="Search employee"
-          style={{
-            width: '100%', height: 36, paddingLeft: 32, paddingRight: 12,
-            borderRadius: 8, border: `1px solid ${C.border}`,
-            background: '#f9fafb', color: C.text, fontSize: 13, outline: 'none',
-            fontFamily: "'DM Sans', sans-serif",
-            boxSizing: 'border-box',
-          }}
-        />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap', fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ position: 'relative', flex: '0 0 220px' }}>
+        <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.muted, pointerEvents: 'none' }}>🔍</span>
+        <input value={search} onChange={e => onSearch(e.target.value)} placeholder="Search employee"
+          style={{ width: '100%', height: 36, paddingLeft: 32, paddingRight: 12, borderRadius: 8, border: `1px solid ${C.border}`, background: '#f9fafb', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
       </div>
-      {/* Date Range */}
-      <button style={filterBtnStyle}>📅 Date Range ▼</button>
-      {/* Advance Filter */}
-      <button style={filterBtnStyle}>🎛 Advance Filter ▼</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 12, color: C.muted }}>From</span>
+        <input type="date" value={dateFrom} onChange={e => onDateFrom(e.target.value)} style={{ height: 34, padding: '0 8px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, outline: 'none' }} />
+        <span style={{ fontSize: 12, color: C.muted }}>To</span>
+        <input type="date" value={dateTo} onChange={e => onDateTo(e.target.value)} style={{ height: 34, padding: '0 8px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, outline: 'none' }} />
+      </div>
+      <select value={statusFilter} onChange={e => onStatus(e.target.value)}
+        style={{ height: 34, padding: '0 10px', borderRadius: 20, border: `1px solid ${C.border}`, background: C.white, color: C.text, fontSize: 13, cursor: 'pointer', outline: 'none' }}>
+        <option value="">All Status</option>
+        <option value="PRESENT">Present</option>
+        <option value="HALF_DAY">Half Day</option>
+        <option value="ABSENT">Absent</option>
+      </select>
     </div>
   )
-}
-
-const filterBtnStyle = {
-  padding: '7px 14px', borderRadius: 20, border: `1px solid ${C.border}`,
-  background: C.white, color: C.text, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-  fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
 }
 
 // ── Table Header Cell ─────────────────────────────────────────────────────────
@@ -394,10 +388,32 @@ export default function Attendance() {
   const [summary,      setSummary]      = useState({ present:0, halfDay:0, absent:0, total:0, daysPresent:0, leavesCount:0, totalWorkingDays:0 })
   const [loading,      setLoading]      = useState(true)
 
+  const [addOpen,     setAddOpen]     = useState(false)
+  const [employees,   setEmployees]   = useState([]) // for Add modal
+  const [statusFilter, setStatusFilter] = useState('')
+  const [dateFrom,    setDateFrom]    = useState('')
+  const [dateTo,      setDateTo]      = useState('')
+
   const goDate = (delta) => {
     const d = new Date(currentDate)
     d.setDate(d.getDate() + delta)
     setCurrentDate(d)
+  }
+
+  // Fetch employees list for Add modal
+  useEffect(() => {
+    if (isPrivileged) api.get('/employees').then(r => setEmployees(r.data.employees || [])).catch(() => {})
+  }, [])
+
+  // CSV export
+  const exportCSV = () => {
+    const headers = ['Name','Login ID','Check In','Check Out','Duration','Extra','Status']
+    const rowsData = rows.map(r => [r.name, r.loginId, r.clockIn, r.clockOut, r.duration, r.extra, r.note])
+    const csv = [headers, ...rowsData].map(r => r.join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
+    a.download = `attendance_${currentDate.toISOString().slice(0,10)}.csv`
+    a.click()
   }
 
   // Fetch real data
@@ -446,9 +462,11 @@ export default function Attendance() {
     }
   }, [currentDate])
 
-  const filtered = search
-    ? rows.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.loginId.toLowerCase().includes(search.toLowerCase()))
-    : rows
+  const filtered = rows.filter(r => {
+    const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.loginId.toLowerCase().includes(search.toLowerCase())
+    const matchStatus = !statusFilter || r.note === statusFilter
+    return matchSearch && matchStatus
+  })
 
   const summaryCards = isPrivileged ? [
     {
@@ -498,6 +516,9 @@ export default function Attendance() {
           currentDate={currentDate}
           onPrev={() => goDate(-1)}
           onNext={() => goDate(+1)}
+          onAdd={() => setAddOpen(true)}
+          onReport={exportCSV}
+          isPrivileged={isPrivileged}
         />
 
         {/* Content */}
@@ -517,7 +538,12 @@ export default function Attendance() {
           }}>
             {/* Filter bar inside card */}
             <div style={{ padding: '16px 20px 0' }}>
-              <FilterBar search={search} onSearch={setSearch} />
+              <FilterBar
+                search={search} onSearch={setSearch}
+                dateFrom={dateFrom} dateTo={dateTo}
+                onDateFrom={setDateFrom} onDateTo={setDateTo}
+                statusFilter={statusFilter} onStatus={setStatusFilter}
+              />
             </div>
 
             {/* Table */}
@@ -561,6 +587,78 @@ export default function Attendance() {
         onNext={() => setSelectedIdx(i => Math.min(rows.length - 1, i + 1))}
         onPrev={() => setSelectedIdx(i => Math.max(0, i - 1))}
       />
+
+      {/* Add Attendance Modal */}
+      {addOpen && isPrivileged && (
+        <AddAttendanceModal
+          employees={employees}
+          onClose={() => setAddOpen(false)}
+          onSaved={() => { setAddOpen(false); const d=new Date(currentDate); setCurrentDate(new Date(d)) }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Add Attendance Modal ──────────────────────────────────────────────────────
+function AddAttendanceModal({ employees, onClose, onSaved }) {
+  const [empId,    setEmpId]    = useState('')
+  const [date,     setDate]     = useState(new Date().toISOString().slice(0,10))
+  const [checkIn,  setCheckIn]  = useState('09:00')
+  const [checkOut, setCheckOut] = useState('18:00')
+  const [saving,   setSaving]   = useState(false)
+  const [error,    setError]    = useState('')
+
+  const save = async () => {
+    if (!empId || !date || !checkIn) { setError('Employee, date and check-in are required'); return }
+    setSaving(true); setError('')
+    try {
+      await api.post('/attendance/manual', { employeeId: empId, date, checkIn, checkOut })
+      onSaved()
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to save')
+    } finally { setSaving(false) }
+  }
+
+  const ov = { position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center' }
+  const card = { background:'#fff', borderRadius:16, padding:28, width:420, boxShadow:'0 20px 60px rgba(0,0,0,0.25)', fontFamily:"'DM Sans',sans-serif" }
+  const inp = { width:'100%', height:38, padding:'0 12px', borderRadius:8, border:`1px solid ${C.border}`, fontSize:13, color:C.text, outline:'none', boxSizing:'border-box' }
+
+  return (
+    <div onClick={onClose} style={ov}>
+      <div onClick={e => e.stopPropagation()} style={card}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text }}>👤 Add Attendance</h2>
+          <button onClick={onClose} style={{ border:'none', background:'transparent', fontSize:20, cursor:'pointer', color:C.muted }}>✕</button>
+        </div>
+        {error && <p style={{ color:C.red, fontSize:12, marginBottom:12 }}>{error}</p>}
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:C.muted, display:'block', marginBottom:4 }}>Employee *</label>
+            <select value={empId} onChange={e => setEmpId(e.target.value)} style={inp}>
+              <option value="">Select employee…</option>
+              {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:C.muted, display:'block', marginBottom:4 }}>Date *</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inp} />
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <div style={{ flex:1 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:C.muted, display:'block', marginBottom:4 }}>Check In *</label>
+              <input type="time" value={checkIn} onChange={e => setCheckIn(e.target.value)} style={inp} />
+            </div>
+            <div style={{ flex:1 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:C.muted, display:'block', marginBottom:4 }}>Check Out</label>
+              <input type="time" value={checkOut} onChange={e => setCheckOut(e.target.value)} style={inp} />
+            </div>
+          </div>
+          <button onClick={save} disabled={saving} style={{ height:42, borderRadius:10, border:'none', background:C.teal, color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer', marginTop:4, opacity:saving?0.7:1 }}>
+            {saving ? 'Saving…' : 'Save Attendance'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
