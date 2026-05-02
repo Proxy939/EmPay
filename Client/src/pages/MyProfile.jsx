@@ -318,6 +318,13 @@ export default function MyProfile() {
                 {emp.designation && <p className="text-sm text-muted-foreground mt-0.5">{emp.designation}</p>}
                 <p className="text-xs text-muted-foreground font-mono mt-0.5">{emp.user?.loginId}</p>
               </div>
+              {/* No-manager warning */}
+              {!emp.manager && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{background:'#fffbeb',border:'1px solid #fde68a',color:'#92400e'}}>
+                  ⚠ No manager assigned — please contact HR
+                </div>
+              )}
 
               {/* Right meta — hidden on mobile */}
               <div className="hidden md:grid grid-cols-2 gap-x-6 gap-y-1 text-xs pb-1 shrink-0">
@@ -394,6 +401,9 @@ export default function MyProfile() {
                     value={editing ? form.personalEmail : emp.personalEmail} editing={editing} onChange={handleChange} />
                   <Field label="Residing Address" name="address" type="textarea"
                     value={editing ? form.address : emp.address} editing={editing} onChange={handleChange} />
+                  <Field label="Date of Joining" name="joinDate" type={editing ? 'date' : 'text'}
+                    value={editing ? (form.joinDate?.slice?.(0,10) || '') : fmt(emp.joinDate)}
+                    editing={editing} onChange={handleChange} />
                 </div>
               </Card>
               <Card title="Bank Details" icon={CreditCard}>
@@ -408,6 +418,8 @@ export default function MyProfile() {
                     value={editing ? form.panNumber : emp.panNumber} editing={editing} onChange={handleChange} />
                   <Field label="UAN No" name="uanNumber"
                     value={editing ? form.uanNumber : emp.uanNumber} editing={editing} onChange={handleChange} />
+                  <Field label="Emp Code" name="empCode"
+                    value={editing ? form.empCode : emp.empCode} editing={editing} onChange={handleChange} />
                 </div>
               </Card>
             </div>

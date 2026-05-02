@@ -6,33 +6,43 @@ const OAuth2 = google.auth.OAuth2;
 
 // Build a fresh access token each time (OAuth2 tokens expire)
 async function createTransporter() {
-  const oauth2Client = new OAuth2(
-    process.env.CLIENT_ID,
-    process.env.CLIENT_SECRET,
-    'https://developers.google.com/oauthplayground'
-  );
+  try {
+    const oauth2Client = new OAuth2(
+      process.env.CLIENT_ID,
+      process.env.CLIENT_SECRET,
+      'https://developers.google.com/oauthplayground'
+    );
 
-  oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
+    oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-  const { token: accessToken } = await oauth2Client.getAccessToken();
+    const { token: accessToken } = await oauth2Client.getAccessToken();
+    if (!accessToken) throw new Error('No access token returned from Google OAuth2');
 
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      type:         'OAuth2',
-      user:         process.env.EMAIL_USER,
-      clientId:     process.env.CLIENT_ID,
-      clientSecret: process.env.CLIENT_SECRET,
-      refreshToken: process.env.REFRESH_TOKEN,
-      accessToken,
-    },
-  });
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type:         'OAuth2',
+        user:         process.env.EMAIL_USER,
+        clientId:     process.env.CLIENT_ID,
+        clientSecret: process.env.CLIENT_SECRET,
+        refreshToken: process.env.REFRESH_TOKEN,
+        accessToken,
+      },
+    });
+  } catch (err) {
+    console.warn('[Mailer] Could not create transporter (OAuth2 token issue):', err.message);
+    return null; // caller must handle null
+  }
 }
 
 // ─── Send Welcome / Credentials Email ────────────────────────────────────────
 async function sendWelcomeEmail({ to, name, loginId, password, companyName }) {
   try {
     const transporter = await createTransporter();
+    if (!transporter) {
+      console.warn('[Mailer] Skipping welcome email — transporter unavailable (check OAuth2 credentials)');
+      return { success: false, error: 'Mail transporter unavailable' };
+    }
 
     const html = `
 <!DOCTYPE html>

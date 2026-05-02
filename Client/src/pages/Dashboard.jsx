@@ -31,30 +31,108 @@ const WS = {
 
 const avColor = (n='') => AVT_CLR[n.charCodeAt(0) % AVT_CLR.length]
 
-// ── Payroll Cost Placeholder ──────────────────────────────────────────────────
-function CostTrendCard() {
+// ── Toggle Switch ─────────────────────────────────────────────────────────────
+function ToggleSwitch({ value, onChange }) {
   const { colors: C } = useTheme()
+  const isMonthly = value === 'monthly'
   return (
-    <div style={{background:C.card, borderRadius:14, boxShadow:C.shadow,
-      padding:'20px 22px', height:'100%', display:'flex', flexDirection:'column', minHeight:320}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
-        <h3 style={{margin:0, fontSize:16, fontWeight:700, color:C.text}}>Employer Cost Trend</h3>
-        <span style={{fontSize:11, padding:'3px 10px', borderRadius:20,
-          background:C.accentL, color:C.accent, fontWeight:600}}>Coming Soon</span>
+    <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:C.muted,fontWeight:600}}>
+      <span style={{color: !isMonthly ? C.text : C.muted}}>Annually</span>
+      <div
+        onClick={() => onChange(isMonthly ? 'annually' : 'monthly')}
+        style={{
+          width:36, height:20, borderRadius:10, cursor:'pointer', position:'relative',
+          background: isMonthly ? C.accent : C.border,
+          transition:'background .2s',
+        }}
+      >
+        <div style={{
+          position:'absolute', top:3, left: isMonthly ? 19 : 3,
+          width:14, height:14, borderRadius:'50%', background:'#fff',
+          boxShadow:'0 1px 3px rgba(0,0,0,0.2)', transition:'left .2s',
+        }}/>
       </div>
-      <div style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center',
-        justifyContent:'center', gap:12, border:`2px dashed ${C.border}`, borderRadius:12, padding:20}}>
-        <Wallet size={36} color={C.border}/>
-        <div style={{textAlign:'center'}}>
-          <p style={{margin:0, fontWeight:600, color:C.muted, fontSize:14}}>No payroll data yet</p>
-          <p style={{margin:'4px 0 0', fontSize:12, color:C.muted}}>
-            Cost trends will appear once the Payroll module is active.
-          </p>
-        </div>
-      </div>
+      <span style={{color: isMonthly ? C.text : C.muted}}>Monthly</span>
     </div>
   )
 }
+
+// ── Bar Chart ─────────────────────────────────────────────────────────────────
+function BarChart({ data, color, unit }) {
+  const { colors: C } = useTheme()
+  const max = Math.max(...data.map(d => d.value), 1)
+  return (
+    <div style={{display:'flex',alignItems:'flex-end',gap:8,height:80,marginTop:8}}>
+      {data.map((d, i) => (
+        <div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1,gap:4}}>
+          <div style={{
+            width:'100%', borderRadius:'4px 4px 0 0',
+            background: color, opacity: 0.7 + (i / data.length) * 0.3,
+            height: `${Math.max((d.value / max) * 100, 6)}%`,
+            transition:'height .4s ease',
+            minHeight:6,
+          }}/>
+          <span style={{fontSize:9,color:C.muted,textAlign:'center',whiteSpace:'nowrap'}}>{d.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Employer Cost Chart ────────────────────────────────────────────────────────
+const COST_DATA = {
+  annually: [
+    {label:'Jan 2025', value:18},{label:'Feb 2025', value:22},{label:'Mar 2025', value:25},
+    {label:'Apr 2025', value:21},{label:'May 2025', value:24},{label:'Jun 2025', value:27},
+  ],
+  monthly: [
+    {label:'Wk 1', value:6},{label:'Wk 2', value:7},{label:'Wk 3', value:5},{label:'Wk 4', value:8},
+  ],
+}
+const EMP_COUNT_DATA = {
+  annually: [
+    {label:'Jan 2025', value:18},{label:'Feb 2025', value:20},{label:'Mar 2025', value:22},
+    {label:'Apr 2025', value:23},{label:'May 2025', value:25},{label:'Jun 2025', value:28},
+  ],
+  monthly: [
+    {label:'Wk 1', value:22},{label:'Wk 2', value:23},{label:'Wk 3', value:24},{label:'Wk 4', value:25},
+  ],
+}
+
+function EmployerCostChart() {
+  const { colors: C } = useTheme()
+  const [mode, setMode] = useState('annually')
+  return (
+    <div style={{background:C.card, borderRadius:14, boxShadow:C.shadow, padding:'18px 20px', flex:1}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+        <span style={{fontWeight:700,fontSize:13,color:C.text}}>Employer cost</span>
+        <ToggleSwitch value={mode} onChange={setMode}/>
+      </div>
+      <div style={{fontSize:10,color:C.muted,marginBottom:4}}>
+        {mode==='annually'?'₹ in Lakhs (monthly view)':'₹ in Lakhs (weekly view)'}
+      </div>
+      <BarChart data={COST_DATA[mode]} color={C.accent} unit="L"/>
+    </div>
+  )
+}
+
+function EmployeeCountChart() {
+  const { colors: C } = useTheme()
+  const [mode, setMode] = useState('annually')
+  return (
+    <div style={{background:C.card, borderRadius:14, boxShadow:C.shadow, padding:'18px 20px', flex:1}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+        <span style={{fontWeight:700,fontSize:13,color:C.text}}>Employee count</span>
+        <ToggleSwitch value={mode} onChange={setMode}/>
+      </div>
+      <div style={{fontSize:10,color:C.muted,marginBottom:4}}>
+        {mode==='annually'?'Headcount by month':'Headcount by week'}
+      </div>
+      <BarChart data={EMP_COUNT_DATA[mode]} color='#0984e3' unit=""/>
+    </div>
+  )
+}
+
 
 // ── Metric Card ─────────────────────────────────────────────────────────────────
 function MetricCard({ label, value, trend, icon: Icon, loading }) {
@@ -347,6 +425,7 @@ export default function Dashboard() {
   const [loading,   setLoading]   = useState(true)
   const [newEmpOpen,setNewEmpOpen]= useState(false)
   const [search,    setSearch]    = useState('')
+  const [dashTab,   setDashTab]   = useState('dashboard') // 'dashboard' | 'payrun' | 'configuration'
 
   const fetchEmps = () => {
     api.get('/employees').then(r=>{ setEmployees(r.data.employees||[]); setLoading(false) }).catch(()=>setLoading(false))
@@ -358,6 +437,10 @@ export default function Dashboard() {
   const onLeave   = employees.filter(e=>e.workStatus==='ON_LEAVE').length
   const absent    = employees.filter(e=>e.workStatus==='ABSENT').length
 
+  // Warnings
+  const noBank    = employees.filter(e=>!e.bankAccountNumber).length
+  const noManager = employees.filter(e=>!e.managerId).length
+
   const filtered  = search
     ? employees.filter(e=>`${e.firstName} ${e.lastName} ${e.department||''} ${e.user?.email||''}`
         .toLowerCase().includes(search.toLowerCase()))
@@ -365,69 +448,125 @@ export default function Dashboard() {
 
   const pct = (n) => total > 0 ? `${Math.round((n/total)*100)}% of workforce` : 'No employees yet'
   const metrics = [
-    { label:'Total Employees',       value:total,     icon:Users,        trend: total > 0 ? `${total} active ${total===1?'employee':'employees'}` : 'No employees yet' },
-    { label:'Checked In Today',      value:checkedIn, icon:Clock,        trend: pct(checkedIn) },
-    { label:'On Leave Today',        value:onLeave,   icon:PlaneTakeoff, trend: pct(onLeave)   },
-    { label:'Absent Today',          value:absent,    icon:BarChart2,    trend: pct(absent)    },
+    { label:'Total Employees',  value:total,     icon:Users,        trend: total > 0 ? `${total} active` : 'No employees yet' },
+    { label:'Checked In Today', value:checkedIn, icon:Clock,        trend: pct(checkedIn) },
+    { label:'On Leave Today',   value:onLeave,   icon:PlaneTakeoff, trend: pct(onLeave)   },
+    { label:'Absent Today',     value:absent,    icon:BarChart2,    trend: pct(absent)    },
   ]
 
-  const role      = JSON.parse(localStorage.getItem('user') || '{}')?.role || 'EMPLOYEE'
-  const canAdd    = ['ADMIN','HR_OFFICER'].includes(role)
+  const role   = JSON.parse(localStorage.getItem('user') || '{}')?.role || 'EMPLOYEE'
+  const canAdd = ['ADMIN','HR_OFFICER'].includes(role)
+
+  // Mock payrun data
+  const payrunItems = [
+    { label:'Payrun for Oct 2025', slips:3 },
+    { label:'Payrun for Sept 2025', slips:3 },
+    { label:'Payrun for Aug 2025', slips:3 },
+  ]
+
+  const DASH_TABS = ['Dashboard','Payrun','Configuration']
 
   return (
     <div style={{display:'flex',minHeight:'100vh',background:C.bg,fontFamily:"'Geist Variable','Inter',sans-serif"}}>
-      {/* Animated dark sidebar (fixed, 64px collapsed) */}
       <Sidebar />
-
-      {/* Main — pl-16 (64px) offsets the collapsed sidebar */}
       <div style={{flex:1,marginLeft:64,padding:'28px 28px 40px',minWidth:0,overflowX:'hidden'}}>
         <TopBar search={search} onSearch={setSearch} onAddEmployee={()=>setNewEmpOpen(true)} canAdd={canAdd}/>
 
+        {/* ── Tab Bar ── */}
+        <div style={{display:'flex',gap:2,marginBottom:20,borderBottom:`1px solid ${C.border}`}}>
+          {DASH_TABS.map(t => {
+            const key = t.toLowerCase()
+            const active = dashTab === key
+            return (
+              <button key={t} onClick={()=>setDashTab(key)}
+                style={{padding:'8px 18px',border:'none',background:'transparent',cursor:'pointer',
+                  fontSize:13,fontWeight:600,borderBottom:`2px solid ${active?C.accent:'transparent'}`,
+                  color:active?C.accent:C.muted,transition:'all .15s',marginBottom:-1}}>
+                {t}
+              </button>
+            )
+          })}
+        </div>
 
-        {/* ── Top section grid ── */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:20,marginBottom:20,alignItems:'start'}}>
+        {/* ══════ DASHBOARD TAB ══════ */}
+        {dashTab === 'dashboard' && (<>
 
-          {/* Left: metrics + attendance */}
-          <div style={{display:'flex',flexDirection:'column',gap:16}}>
-            {/* Metric Cards */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-              {metrics.map(m=>(
-                <MetricCard key={m.label} loading={loading} {...m}/>
-              ))}
+          {/* Warnings */}
+          {!loading && (noBank > 0 || noManager > 0) && (
+            <div style={{background:'#fffbeb',border:'1px solid #fde68a',borderRadius:12,padding:'14px 18px',marginBottom:18}}>
+              <p style={{margin:'0 0 8px',fontWeight:700,fontSize:13,color:'#92400e'}}>⚠ Warning</p>
+              <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                {noBank > 0 && (
+                  <p style={{margin:0,fontSize:12,color:'#b45309'}}>
+                    {noBank} Employee{noBank>1?'s':''} without Bank A/c
+                  </p>
+                )}
+                {noManager > 0 && (
+                  <p style={{margin:0,fontSize:12,color:'#b45309'}}>
+                    {noManager} Employee{noManager>1?'s':''} without Manager
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Top grid */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:20,marginBottom:20,alignItems:'start'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              {/* Metric Cards */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                {metrics.map(m=>(
+                  <MetricCard key={m.label} loading={loading} {...m}/>
+                ))}
+              </div>
+              {/* Today's Attendance */}
+              <div style={{background:C.card,borderRadius:14,boxShadow:C.shadow,padding:'20px 22px'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+                  <h3 style={{margin:0,fontSize:16,fontWeight:700,color:C.text}}>Today's Attendance</h3>
+                  <button style={{width:28,height:28,borderRadius:8,background:C.accentL,border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <Plus size={14} color={C.accent}/>
+                  </button>
+                </div>
+                {loading
+                  ? [1,2,3].map(i=><div key={i} style={{height:58,background:C.border,borderRadius:10,marginBottom:8}}/>)
+                  : employees.length===0
+                    ? <p style={{color:C.muted,fontSize:13,margin:'20px 0',textAlign:'center'}}>No employees yet</p>
+                    : employees.slice(0,6).map(e=><ARow key={e.id} emp={e}/>)
+                }
+              </div>
             </div>
 
-            {/* Today's Attendance */}
-            <div style={{background:C.card, borderRadius:14, boxShadow:C.shadow, padding:'20px 22px'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-                <h3 style={{margin:0,fontSize:16,fontWeight:700,color:C.text}}>Today's Attendance</h3>
-                <button style={{width:28,height:28,borderRadius:8,background:C.accentL,border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <Plus size={14} color={C.accent}/>
-                </button>
+            {/* Right column — payrun + charts */}
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              {/* Payrun Card */}
+              <div style={{background:C.card,borderRadius:14,boxShadow:C.shadow,padding:'18px 20px'}}>
+                <p style={{margin:'0 0 12px',fontWeight:700,fontSize:13,color:C.text}}>Payrun</p>
+                {payrunItems.map((p,i)=>(
+                  <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                    padding:'8px 0',borderBottom:i<payrunItems.length-1?`1px solid ${C.border}`:'none'}}>
+                    <span style={{fontSize:12,color:C.text,fontWeight:500}}>{p.label}</span>
+                    <span style={{fontSize:11,color:C.muted,background:C.accentL,padding:'2px 8px',borderRadius:20,fontWeight:600}}>
+                      {p.slips} Payslip{p.slips!==1?'s':''}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {loading
-                ? [1,2,3].map(i=><div key={i} style={{height:58,background:C.border,borderRadius:10,marginBottom:8}}/>)
-                : employees.length===0
-                  ? <p style={{color:C.muted,fontSize:13,margin:'20px 0',textAlign:'center'}}>No employees yet</p>
-                  : employees.slice(0,6).map(e=><ARow key={e.id} emp={e}/>)
-              }
+              {/* Charts with toggles */}
+              <EmployerCostChart/>
+              <EmployeeCountChart/>
             </div>
           </div>
 
-          {/* Right: Cost trend (payroll module pending) */}
-          <CostTrendCard />
-        </div>
-
-        {/* ── Employee Table ── */}
-        <div style={{background:C.card, borderRadius:14, boxShadow:C.shadow, overflow:'hidden'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px',borderBottom:`1px solid ${C.border}`}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <Users size={16} color={C.accent}/>
-              <span style={{fontWeight:700,fontSize:15,color:C.text}}>Total Employees</span>
-              <span style={{background:C.accentL,color:C.accent,fontSize:12,fontWeight:700,padding:'2px 8px',borderRadius:20}}>
-                {loading?'…':total.toLocaleString()}
-              </span>
-            </div>
-            <div style={{display:'flex',gap:10}}>
+          {/* Employee Table */}
+          <div style={{background:C.card,borderRadius:14,boxShadow:C.shadow,overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px',borderBottom:`1px solid ${C.border}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <Users size={16} color={C.accent}/>
+                <span style={{fontWeight:700,fontSize:15,color:C.text}}>Total Employees</span>
+                <span style={{background:C.accentL,color:C.accent,fontSize:12,fontWeight:700,padding:'2px 8px',borderRadius:20}}>
+                  {loading?'…':total.toLocaleString()}
+                </span>
+              </div>
               <div style={{position:'relative'}}>
                 <Search size={13} color={C.muted} style={{position:'absolute',left:9,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}/>
                 <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or ID"
@@ -435,42 +574,70 @@ export default function Dashboard() {
                     background:C.inputBg,color:C.text,fontSize:12,outline:'none',width:180}}/>
               </div>
             </div>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{background:C.tableBg}}>
+                    {['ID','Name','Email','Department','Status','Action'].map(h=>(
+                      <th key={h} style={{padding:'10px 16px',textAlign:'left',fontSize:11,fontWeight:700,
+                        color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:`1px solid ${C.border}`}}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading
+                    ? [1,2,3].map(i=>(
+                        <tr key={i}><td colSpan={6} style={{padding:'14px 16px'}}>
+                          <div style={{height:16,background:'#f0f0f0',borderRadius:6}}/>
+                        </td></tr>
+                      ))
+                    : filtered.map(e=><TRow key={e.id} emp={e} navigate={navigate}/>)
+                  }
+                  {!loading && filtered.length===0 && (
+                    <tr><td colSpan={6} style={{padding:'32px 16px',textAlign:'center',color:C.muted,fontSize:13}}>
+                      No employees match your search.
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
+        </>)}
 
-          <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{background:C.tableBg}}>
-                  {['ID','Name','Email','Department','Status','Action'].map(h=>(
-                    <th key={h} style={{padding:'10px 16px',textAlign:'left',fontSize:11,fontWeight:700,
-                      color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',borderBottom:`1px solid ${C.border}`}}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading
-                  ? [1,2,3].map(i=>(
-                      <tr key={i}><td colSpan={6} style={{padding:'14px 16px'}}>
-                        <div style={{height:16,background:'#f0f0f0',borderRadius:6}}/>
-                      </td></tr>
-                    ))
-                  : filtered.map(e=><TRow key={e.id} emp={e} navigate={navigate}/>)
-                }
-                {!loading && filtered.length===0 && (
-                  <tr><td colSpan={6} style={{padding:'32px 16px',textAlign:'center',color:C.muted,fontSize:13}}>
-                    No employees match your search.
-                  </td></tr>
-                )}
-              </tbody>
-            </table>
+        {/* ══════ PAYRUN TAB ══════ */}
+        {dashTab === 'payrun' && (
+          <div style={{background:C.card,borderRadius:14,boxShadow:C.shadow,padding:'28px'}}>
+            <h3 style={{margin:'0 0 16px',fontSize:16,fontWeight:700,color:C.text}}>Payrun History</h3>
+            {payrunItems.map((p,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                padding:'14px 0',borderBottom:`1px solid ${C.border}`}}>
+                <div>
+                  <p style={{margin:0,fontWeight:600,fontSize:14,color:C.text}}>{p.label}</p>
+                  <p style={{margin:0,fontSize:12,color:C.muted}}>{p.slips} payslip{p.slips!==1?'s':''} generated</p>
+                </div>
+                <button style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.border}`,
+                  background:'transparent',color:C.text,fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                  View
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
+
+        {/* ══════ CONFIGURATION TAB ══════ */}
+        {dashTab === 'configuration' && (
+          <div style={{background:C.card,borderRadius:14,boxShadow:C.shadow,padding:'28px'}}>
+            <h3 style={{margin:'0 0 8px',fontSize:16,fontWeight:700,color:C.text}}>Configuration</h3>
+            <p style={{margin:0,fontSize:13,color:C.muted}}>Payroll configuration settings coming soon.</p>
+          </div>
+        )}
+
       </div>
-
-      {/* New Employee Dialog */}
       <NewEmployeeDialog open={newEmpOpen} onOpenChange={setNewEmpOpen} onCreated={fetchEmps}/>
     </div>
   )
 }
+
+
