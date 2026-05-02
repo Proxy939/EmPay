@@ -4,6 +4,7 @@
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../config/prisma');
 const { generateLoginId, generatePassword } = require('../utils/generateCredentials');
+const { sendWelcomeEmail } = require('../utils/mailer');
 
 // ─── CREATE USER ──────────────────────────────────────────────────────────────
 // Route: POST /api/users  (ADMIN, HR_OFFICER only)
@@ -92,9 +93,25 @@ const createUser = async (req, res, next) => {
       },
     });
 
-    // ⚠️  plainPassword is returned ONCE — admin must share it with the employee
+    // ─── Send welcome email with credentials ────────────────────────────────
+    // Fire-and-forget: email failure must never break user creation.
+    sendWelcomeEmail({
+      to:          email,
+      name,
+      loginId,
+      password:    plainPassword,
+      role,
+      companyName: admin.companyName,
+    }).then(() => {
+      console.log(`📧 Welcome email sent to ${email}`);
+    }).catch((err) => {
+      // Log but don't fail — credentials are still in the API response
+      console.error(`⚠️  Failed to send welcome email to ${email}:`, err.message);
+    });
+
+    // ⚠️  plainPassword is returned ONCE — shown in response AND emailed to user
     res.status(201).json({
-      message:     'User created successfully',
+      message:     'User created successfully. Welcome email sent to ' + email,
       credentials: { loginId, password: plainPassword },
       user,
     });
