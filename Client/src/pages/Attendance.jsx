@@ -49,17 +49,8 @@ function fmtH(h) {
   return `${hrs}h${mins > 0 ? ' ' + mins + 'm' : ''}`
 }
 
-// Helpers
-function to12hr(t) {
-  if (!t) return '—'
-  const [h, m] = t.split(':').map(Number)
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`
-}
-function fmtH(h) {
-  if (!h || h <= 0) return '—'
-  return `${Math.floor(h)}h${Math.round((h-Math.floor(h))*60) > 0 ? ' '+Math.round((h-Math.floor(h))*60)+'m' : ''}`
-}
+
+
 function clockInColor(t) {
   if (!t || t === '—') return C.muted
   const [time, ampm] = t.split(' ')
