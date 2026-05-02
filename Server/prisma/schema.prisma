@@ -116,7 +116,10 @@ model Employee {
   uanNumber         String?
 
   // Salary Info — visible ONLY to Admin / Payroll Officer
-  wageAmount        Float          @default(0)
+  wageAmount          Float          @default(0)
+  workingDaysPerWeek  Int            @default(5)
+  breakTimeHours      Float          @default(1)
+  empCode             String?
 
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt

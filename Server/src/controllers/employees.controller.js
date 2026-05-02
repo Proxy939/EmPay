@@ -305,6 +305,7 @@ const updateEmployee = async (req, res, next) => {
       nationality, dateOfBirth, address, profilePhoto, department, designation,
       companyLocation, managerId, about, whatILove, interests,
       bankAccountNumber, bankName, ifscCode, panNumber, uanNumber,
+      wageAmount, workingDaysPerWeek, breakTimeHours, empCode,
     } = req.body;
 
     const updated = await prisma.employee.update({
@@ -332,6 +333,10 @@ const updateEmployee = async (req, res, next) => {
         ...(ifscCode !== undefined && { ifscCode }),
         ...(panNumber !== undefined && { panNumber }),
         ...(uanNumber !== undefined && { uanNumber }),
+        ...(wageAmount !== undefined && { wageAmount: parseFloat(wageAmount) }),
+        ...(workingDaysPerWeek !== undefined && { workingDaysPerWeek: parseInt(workingDaysPerWeek) }),
+        ...(breakTimeHours !== undefined && { breakTimeHours: parseFloat(breakTimeHours) }),
+        ...(empCode !== undefined && { empCode }),
       },
       include: {
         user: {
@@ -432,6 +437,76 @@ const removeCertification = async (req, res, next) => {
   }
 };
 
+// ─── SALARY BREAKDOWN (computed from wageAmount) ─────────────────────────────
+// Route: GET /api/employees/:id/salary  (Admin, Payroll only)
+// Computes Indian salary structure from monthly wage
+const getSalaryBreakdown = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: { id: true, firstName: true, lastName: true, wageAmount: true,
+                workingDaysPerWeek: true, breakTimeHours: true },
+    });
+
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    const wage = employee.wageAmount; // monthly wage
+
+    // Salary Components (standard Indian percentages)
+    const basic             = +(wage * 0.50).toFixed(2);         // 50% of wage
+    const hra               = +(basic * 0.50).toFixed(2);        // 50% of basic
+    const standardAllowance = 4167;                               // fixed ₹4167
+    const performanceBonus  = +(wage * 0.0833).toFixed(2);       // 8.33%
+    const lta               = +(wage * 0.0833).toFixed(2);       // 8.33%
+    const totalDefined      = basic + hra + standardAllowance + performanceBonus + lta;
+    const fixedAllowance    = +(wage - totalDefined).toFixed(2); // remainder
+
+    // PF Contribution (12% of basic each side)
+    const pfEmployee  = +(basic * 0.12).toFixed(2);
+    const pfEmployer  = +(basic * 0.12).toFixed(2);
+
+    // Tax Deductions
+    const professionalTax = 200; // fixed ₹200/month
+
+    // Gross & Net
+    const grossSalary = wage;
+    const totalDeductions = pfEmployee + professionalTax;
+    const netSalary   = +(grossSalary - totalDeductions).toFixed(2);
+
+    res.json({
+      employee: { id: employee.id, name: `${employee.firstName} ${employee.lastName}` },
+      monthlyWage: wage,
+      yearlyWage: +(wage * 12).toFixed(2),
+      workingDaysPerWeek: employee.workingDaysPerWeek,
+      breakTimeHours: employee.breakTimeHours,
+      components: {
+        basic:             { amount: basic,             percent: 50,    desc: 'Basic salary from company cost compute, based on monthly wages' },
+        hra:               { amount: hra,               percent: 50,    desc: 'HRA provided to employees, 50% of the basic salary' },
+        standardAllowance: { amount: standardAllowance, percent: +(standardAllowance / wage * 100).toFixed(2), desc: 'A fixed amount provided to employee as part of their salary' },
+        performanceBonus:  { amount: performanceBonus,  percent: 8.33,  desc: 'Variable amount paid during payroll, defined by company' },
+        lta:               { amount: lta,               percent: 8.33,  desc: 'LTA is paid by the company to employees to cover travel expenses' },
+        fixedAllowance:    { amount: fixedAllowance,    percent: +(fixedAllowance / wage * 100).toFixed(2), desc: 'Remaining portion of wages after calculating all components' },
+      },
+      pf: {
+        employee: { amount: pfEmployee, percent: 12, desc: 'PF is calculated based on the basic salary' },
+        employer: { amount: pfEmployer, percent: 12, desc: 'PF is calculated based on the basic salary' },
+      },
+      tax: {
+        professionalTax: { amount: professionalTax, desc: 'Professional Tax deducted from the gross salary' },
+      },
+      grossSalary,
+      totalDeductions,
+      netSalary,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllEmployees,
   getEmployeeById,
@@ -443,4 +518,5 @@ module.exports = {
   removeSkill,
   addCertification,
   removeCertification,
+  getSalaryBreakdown,
 };

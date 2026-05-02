@@ -94,7 +94,7 @@ const createUser = async (req, res, next) => {
 
     // ⚠️  plainPassword is returned ONCE — admin must share it with the employee
     res.status(201).json({
-      message: 'User created successfully',
+      message:     'User created successfully',
       credentials: { loginId, password: plainPassword },
       user,
     });
