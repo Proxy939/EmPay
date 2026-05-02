@@ -3,6 +3,8 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import EmployeeProfile from './pages/EmployeeProfile'
+import MyProfile from './pages/MyProfile'
+import ChangePassword from './pages/ChangePassword'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // Placeholder — will be built as backend modules are done
@@ -24,14 +26,15 @@ function App() {
         <Route path="/signup" element={<Signup />} />
 
         {/* Protected routes */}
-        <Route path="/dashboard"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/employees/:id"  element={<ProtectedRoute><EmployeeProfile /></ProtectedRoute>} />
+        <Route path="/dashboard"        element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/change-password"  element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+        <Route path="/employees/:id"    element={<ProtectedRoute><EmployeeProfile /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute><ComingSoon title="Attendance" /></ProtectedRoute>} />
         <Route path="/time-off"   element={<ProtectedRoute><ComingSoon title="Time Off" /></ProtectedRoute>} />
         <Route path="/payroll"    element={<ProtectedRoute><ComingSoon title="Payroll" /></ProtectedRoute>} />
         <Route path="/reports"    element={<ProtectedRoute><ComingSoon title="Reports" /></ProtectedRoute>} />
         <Route path="/settings"   element={<ProtectedRoute><ComingSoon title="Settings" /></ProtectedRoute>} />
-        <Route path="/profile"    element={<ProtectedRoute><ComingSoon title="My Profile" /></ProtectedRoute>} />
+        <Route path="/profile"    element={<ProtectedRoute><MyProfile /></ProtectedRoute>} />
 
         {/* Default redirects */}
         <Route path="/employees-list" element={<ProtectedRoute><ComingSoon title="Employees Grid" /></ProtectedRoute>} />

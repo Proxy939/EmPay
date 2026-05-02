@@ -47,14 +47,27 @@ const ThemeCtx = createContext({
 })
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem('empay-theme') || 'light'
-  )
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('empay-theme') || 'light'
+    // Apply immediately to avoid flash-of-wrong-theme
+    const root = document.documentElement
+    root.setAttribute('data-theme', saved)
+    if (saved === 'dark') root.classList.add('dark')
+    else root.classList.remove('dark')
+    return saved
+  })
 
   useEffect(() => {
     localStorage.setItem('empay-theme', theme)
-    // Keep html data-theme in sync (useful for any global CSS selectors)
-    document.documentElement.setAttribute('data-theme', theme)
+    const root = document.documentElement
+    // Sync data-theme for CSS variables ([data-theme="dark"])
+    root.setAttribute('data-theme', theme)
+    // Sync .dark class for Tailwind dark: utilities
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
   }, [theme])
 
   const toggle = () => setTheme(t => (t === 'light' ? 'dark' : 'light'))

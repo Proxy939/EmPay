@@ -80,9 +80,151 @@ function MetricCard({ label, value, trend, icon: Icon, loading }) {
 
 
 
+// ── Check In / Out Widget ─────────────────────────────────────────────────────
+function CheckInWidget({ C }) {
+  const [status,  setStatus]  = useState(null)  // 'CHECKED_IN' | 'CHECKED_OUT' | null
+  const [time,    setTime]    = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const fetchStatus = () => {
+    api.get('/attendance/my-status')
+      .then(r => {
+        const d = r.data
+        setStatus(d.status)
+        if (d.checkInTime) {
+          const t = new Date(d.checkInTime)
+          setTime(t.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }))
+        } else {
+          setTime('')
+        }
+      })
+      .catch(() => setStatus(null))
+  }
+
+  useEffect(() => { fetchStatus() }, [])
+
+  const handleCheckIn = async () => {
+    setLoading(true)
+    try { await api.post('/attendance/check-in');  fetchStatus() } catch(e) { console.error(e) }
+    setLoading(false)
+  }
+  const handleCheckOut = async () => {
+    setLoading(true)
+    try { await api.post('/attendance/check-out'); fetchStatus() } catch(e) { console.error(e) }
+    setLoading(false)
+  }
+
+  const isIn = status === 'CHECKED_IN'
+
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:8,
+      background:C.card, border:`1px solid ${C.border}`,
+      borderRadius:10, padding:'6px 12px', minWidth:160 }}>
+      {/* Status dot */}
+      <div style={{ width:8, height:8, borderRadius:'50%', flexShrink:0,
+        background: isIn ? C.green : C.muted,
+        boxShadow: isIn ? `0 0 0 3px ${C.green}33` : 'none',
+        transition: 'all .3s' }} />
+      <div style={{ flex:1, minWidth:0 }}>
+        <p style={{ margin:0, fontSize:11, color:C.muted, lineHeight:1.2 }}>
+          {isIn ? `In since ${time}` : 'Not checked in'}
+        </p>
+      </div>
+      <button
+        onClick={isIn ? handleCheckOut : handleCheckIn}
+        disabled={loading || status === null}
+        style={{
+          padding:'4px 10px', borderRadius:7, border:'none',
+          background: isIn ? C.red : C.green,
+          color:'white', fontSize:11, fontWeight:700, cursor:'pointer',
+          opacity: (loading || status === null) ? 0.6 : 1,
+          transition:'all .2s', whiteSpace:'nowrap',
+        }}
+      >
+        {loading ? '…' : isIn ? 'Check Out' : 'Check In'}
+      </button>
+    </div>
+  )
+}
+
+// ── Avatar Dropdown ────────────────────────────────────────────────────────────
+function AvatarMenu({ C, initials, navigate }) {
+  const [open, setOpen] = useState(false)
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    navigate('/login')
+  }
+
+  return (
+    <div style={{ position:'relative' }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ width:36, height:36, borderRadius:'50%', background:C.accent,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          color:'white', fontWeight:700, fontSize:13, cursor:'pointer',
+          boxShadow: open ? `0 0 0 3px ${C.accentL}` : 'none', transition:'box-shadow .15s' }}
+      >
+        {initials}
+      </div>
+
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div onClick={() => setOpen(false)}
+            style={{ position:'fixed', inset:0, zIndex:98 }} />
+          {/* Menu */}
+          <div style={{
+            position:'absolute', right:0, top:'calc(100% + 8px)', zIndex:99,
+            background:C.card, border:`1px solid ${C.border}`,
+            borderRadius:12, boxShadow:C.shadow, minWidth:180, overflow:'hidden',
+          }}>
+            {/* Name row */}
+            <div style={{ padding:'12px 14px', borderBottom:`1px solid ${C.border}` }}>
+              <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.text }}>
+                {JSON.parse(localStorage.getItem('user') || '{}')?.name || 'User'}
+              </p>
+              <p style={{ margin:0, fontSize:11, color:C.muted }}>
+                {JSON.parse(localStorage.getItem('user') || '{}')?.email || ''}
+              </p>
+            </div>
+            {/* My Profile */}
+            <button
+              onClick={() => { setOpen(false); navigate('/profile') }}
+              style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
+                padding:'10px 14px', border:'none', background:'transparent',
+                cursor:'pointer', textAlign:'left', color:C.text, fontSize:13,
+                fontWeight:500, transition:'background .15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = C.hover}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Users size={14} color={C.muted} /> My Profile
+            </button>
+            <div style={{ height:1, background:C.border, margin:'0 14px' }} />
+            {/* Log Out */}
+            <button
+              onClick={handleLogout}
+              style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
+                padding:'10px 14px', border:'none', background:'transparent',
+                cursor:'pointer', textAlign:'left', color:C.red, fontSize:13,
+                fontWeight:500, transition:'background .15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = C.redBg}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Eye size={14} color={C.red} /> Log Out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── TopBar ────────────────────────────────────────────────────────────────────
 function TopBar({ search, onSearch, onAddEmployee, canAdd }) {
   const { colors: C, theme, toggle } = useTheme()
+  const navigate = useNavigate()
   const user    = JSON.parse(localStorage.getItem('user') || '{}')
   const name    = user?.name || 'User'
   const initials= name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase()
@@ -92,7 +234,7 @@ function TopBar({ search, onSearch, onAddEmployee, canAdd }) {
         <h1 style={{margin:0,fontSize:24,fontWeight:800,color:C.text}}>Dashboard</h1>
         <p style={{margin:0,color:C.muted,fontSize:13,marginTop:2}}>Monitor all of your HR metrics here</p>
       </div>
-      <div style={{display:'flex',alignItems:'center',gap:12}}>
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
         {canAdd && (
           <button onClick={onAddEmployee}
             style={{display:'flex',alignItems:'center',gap:6,height:36,padding:'0 14px',borderRadius:10,
@@ -100,11 +242,13 @@ function TopBar({ search, onSearch, onAddEmployee, canAdd }) {
             <UserPlus size={14}/> New Employee
           </button>
         )}
+        {/* Check In/Out */}
+        <CheckInWidget C={C} />
         <div style={{position:'relative'}}>
           <Search size={14} color={C.muted} style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}/>
           <input value={search} onChange={e=>onSearch(e.target.value)} placeholder="Search anything"
             style={{height:36,paddingLeft:32,paddingRight:12,borderRadius:10,border:`1px solid ${C.border}`,
-              background:C.inputBg,color:C.text,fontSize:13,outline:'none',width:200}}/>
+              background:C.inputBg,color:C.text,fontSize:13,outline:'none',width:180}}/>
         </div>
         {/* Theme toggle */}
         <button onClick={toggle} title={theme==='light'?'Switch to dark':'Switch to light'}
@@ -116,14 +260,13 @@ function TopBar({ search, onSearch, onAddEmployee, canAdd }) {
           display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
           <Bell size={16} color={C.muted}/>
         </div>
-        <div style={{width:36,height:36,borderRadius:'50%',background:C.accent,display:'flex',
-          alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:13,cursor:'pointer'}}>
-          {initials}
-        </div>
+        {/* Avatar with dropdown */}
+        <AvatarMenu C={C} initials={initials} navigate={navigate} />
       </div>
     </div>
   )
 }
+
 
 // ── Attendance Row ────────────────────────────────────────────────────────────
 function ARow({ emp }) {
