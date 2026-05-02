@@ -82,67 +82,79 @@ function MetricCard({ label, value, trend, icon: Icon, loading }) {
 
 // ── Check In / Out Widget ─────────────────────────────────────────────────────
 function CheckInWidget({ C }) {
-  const [status,  setStatus]  = useState(null)  // 'CHECKED_IN' | 'CHECKED_OUT' | null
+  const [status,  setStatus]  = useState(null)  // 'CHECKED_IN' | 'CHECKED_OUT' | 'ABSENT'
   const [time,    setTime]    = useState('')
   const [loading, setLoading] = useState(false)
+  const [errMsg,  setErrMsg]  = useState('')
 
   const fetchStatus = () => {
     api.get('/attendance/my-status')
       .then(r => {
         const d = r.data
-        setStatus(d.status)
-        if (d.checkInTime) {
-          const t = new Date(d.checkInTime)
+        setStatus(d.workStatus)          // backend returns workStatus
+        if (d.since) {
+          const t = new Date(d.since)    // backend returns since (checkIn time)
           setTime(t.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }))
         } else {
           setTime('')
         }
       })
-      .catch(() => setStatus(null))
+      .catch(() => setStatus('ABSENT'))
   }
 
   useEffect(() => { fetchStatus() }, [])
 
   const handleCheckIn = async () => {
-    setLoading(true)
-    try { await api.post('/attendance/check-in');  fetchStatus() } catch(e) { console.error(e) }
+    setLoading(true); setErrMsg('')
+    try { await api.post('/attendance/check-in');  fetchStatus() }
+    catch(e) { setErrMsg(e.response?.data?.message || 'Check-in failed') }
     setLoading(false)
   }
   const handleCheckOut = async () => {
-    setLoading(true)
-    try { await api.post('/attendance/check-out'); fetchStatus() } catch(e) { console.error(e) }
+    setLoading(true); setErrMsg('')
+    try { await api.post('/attendance/check-out'); fetchStatus() }
+    catch(e) { setErrMsg(e.response?.data?.message || 'Check-out failed') }
     setLoading(false)
   }
 
-  const isIn = status === 'CHECKED_IN'
+  const isIn  = status === 'CHECKED_IN'
+  const isOut = status === 'CHECKED_OUT'
 
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:8,
-      background:C.card, border:`1px solid ${C.border}`,
-      borderRadius:10, padding:'6px 12px', minWidth:160 }}>
-      {/* Status dot */}
-      <div style={{ width:8, height:8, borderRadius:'50%', flexShrink:0,
-        background: isIn ? C.green : C.muted,
-        boxShadow: isIn ? `0 0 0 3px ${C.green}33` : 'none',
-        transition: 'all .3s' }} />
-      <div style={{ flex:1, minWidth:0 }}>
-        <p style={{ margin:0, fontSize:11, color:C.muted, lineHeight:1.2 }}>
-          {isIn ? `In since ${time}` : 'Not checked in'}
-        </p>
+    <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8,
+        background:C.card, border:`1px solid ${errMsg ? C.red : C.border}`,
+        borderRadius:10, padding:'6px 12px', minWidth:160, transition:'border .2s' }}>
+        {/* Status dot */}
+        <div style={{ width:8, height:8, borderRadius:'50%', flexShrink:0,
+          background: isIn ? C.green : isOut ? C.amber : C.muted,
+          boxShadow: isIn ? `0 0 0 3px ${C.green}33` : 'none',
+          transition: 'all .3s' }} />
+        <div style={{ flex:1, minWidth:0 }}>
+          <p style={{ margin:0, fontSize:11, color:C.muted, lineHeight:1.2 }}>
+            {isIn  ? `In since ${time}` :
+             isOut ? `Out · ${time}`    : 'Not checked in'}
+          </p>
+        </div>
+        <button
+          onClick={isIn ? handleCheckOut : handleCheckIn}
+          disabled={loading || isOut}
+          style={{
+            padding:'4px 10px', borderRadius:7, border:'none',
+            background: isIn ? C.red : isOut ? C.border : C.green,
+            color: isOut ? C.muted : 'white',
+            fontSize:11, fontWeight:700,
+            cursor: (loading || isOut) ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+            transition:'all .2s', whiteSpace:'nowrap',
+          }}
+        >
+          {loading ? '…' : isIn ? 'Check Out' : isOut ? 'Done' : 'Check In'}
+        </button>
       </div>
-      <button
-        onClick={isIn ? handleCheckOut : handleCheckIn}
-        disabled={loading || status === null}
-        style={{
-          padding:'4px 10px', borderRadius:7, border:'none',
-          background: isIn ? C.red : C.green,
-          color:'white', fontSize:11, fontWeight:700, cursor:'pointer',
-          opacity: (loading || status === null) ? 0.6 : 1,
-          transition:'all .2s', whiteSpace:'nowrap',
-        }}
-      >
-        {loading ? '…' : isIn ? 'Check Out' : 'Check In'}
-      </button>
+      {errMsg && (
+        <p style={{ margin:0, fontSize:10, color:C.red, paddingLeft:4 }}>{errMsg}</p>
+      )}
     </div>
   )
 }
