@@ -122,8 +122,8 @@ export default function Sidebar() {
       <div style={{ padding: '10px 10px 0' }}>
         <motion.div
           variants={itemVariants} initial="collapsed" animate="expanded" transition={{ delay: 0.12 }}
-          style={{ display: 'flex', alignItems: 'center', gap: 9, background: '#f8f8ff',
-            border: `1px solid #e0dcff`, borderRadius: 10, padding: '9px 11px', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 9, background: S.hover || '#f8f8ff',
+            border: `1px solid ${S.border}`, borderRadius: 10, padding: '9px 11px', cursor: 'pointer' }}
         >
           <div style={{ width: 30, height: 30, background: S.accent, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>
             {coInitials}
@@ -169,7 +169,7 @@ export default function Sidebar() {
       <div style={{ borderTop: `1px solid ${S.border}`, padding: '10px 10px 14px' }}>
         <motion.div
           variants={itemVariants} initial="collapsed" animate="expanded" transition={{ delay: 0.28 }}
-          style={{ display: 'flex', alignItems: 'center', gap: 9, background: '#fafafa', borderRadius: 10, padding: '9px 11px' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 9, background: S.hover || '#fafafa', borderRadius: 10, padding: '9px 11px' }}
         >
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: S.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
             {initials}

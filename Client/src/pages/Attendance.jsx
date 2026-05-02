@@ -2,17 +2,36 @@ import { useState, useEffect } from 'react'
 import AttendanceDetailModal from '@/components/attendance/AttendanceDetailModal'
 import api from '@/lib/api'
 import Sidebar from '@/components/layout/Sidebar'
+import { useTheme } from '@/lib/theme'
 
-// ── Google Font ──────────────────────────────────────────────────────────────
-const FONT_LINK = document.createElement('link')
-FONT_LINK.rel = 'stylesheet'
-FONT_LINK.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap'
-document.head.appendChild(FONT_LINK)
+// ── Theme-aware constants ──────────────────────────────────────────────────────
+function useC() {
+  const { colors } = useTheme()
+  return {
+    nav:      colors.card,
+    navBorder:colors.border,
+    teal:     '#00b4d8',
+    tealBg:   '#e0f7fc',
+    amber:    '#f59e0b',
+    orange:   '#f97316',
+    red:      '#ef4444',
+    green:    '#22c55e',
+    blue:     '#3b82f6',
+    blueLight:'#eff6ff',
+    orangeL:  '#fff7ed',
+    greenL:   '#f0fdf4',
+    white:    colors.card,
+    bg:       colors.bg,
+    text:     colors.text,
+    muted:    colors.muted,
+    border:   colors.border,
+    rowHover: colors.hover || '#f0f9ff',
+    pill:     colors.inputBg || '#f3f4f6',
+  }
+}
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// Static fallback C for module-level helpers that can't use hooks
 const C = {
-  nav:      '#1a1d23',
-  navBorder:'#2a2d35',
   teal:     '#00b4d8',
   tealBg:   '#e0f7fc',
   amber:    '#f59e0b',
@@ -97,7 +116,6 @@ function PageHeader({ currentDate, onPrev, onNext, onAdd, onReport, isPrivileged
       background: C.white, borderBottom: `1px solid ${C.border}`,
       padding: '14px 28px',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      fontFamily: "'DM Sans', sans-serif",
     }}>
       {/* Title */}
       <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text }}>Attendance</h1>
@@ -118,7 +136,7 @@ function PageHeader({ currentDate, onPrev, onNext, onAdd, onReport, isPrivileged
           padding: '8px 16px', borderRadius: 8,
           border: `1px solid ${C.border}`, background: C.white,
           color: C.text, fontWeight: 600, fontSize: 13, cursor: 'pointer',
-          fontFamily: "'DM Sans', sans-serif",
+          fontFamily: 'inherit',
         }}>
           📋 Attendance Report
         </button>
@@ -128,7 +146,7 @@ function PageHeader({ currentDate, onPrev, onNext, onAdd, onReport, isPrivileged
           padding: '8px 16px', borderRadius: 8,
           border: 'none', background: C.teal,
           color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-          fontFamily: "'DM Sans', sans-serif",
+          fontFamily: 'inherit',
           boxShadow: '0 2px 8px rgba(0,180,216,0.3)',
         }}>
           👤 Add
@@ -162,7 +180,7 @@ function SummaryCard({ icon, iconColor, iconBg, title, stats }) {
     <div style={{
       background: C.white, borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       padding: '16px 20px', flex: 1,
-      fontFamily: "'DM Sans', sans-serif",
+      fontFamily: 'inherit',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -192,7 +210,7 @@ function SummaryCard({ icon, iconColor, iconBg, title, stats }) {
 // ── Filter Bar ───────────────────────────────────────────────────────────────
 function FilterBar({ search, onSearch, dateFrom, dateTo, onDateFrom, onDateTo, statusFilter, onStatus }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
       <div style={{ position: 'relative', flex: '0 0 220px' }}>
         <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.muted, pointerEvents: 'none' }}>🔍</span>
         <input value={search} onChange={e => onSearch(e.target.value)} placeholder="Search employee"
@@ -427,7 +445,7 @@ export default function Attendance() {
   ]
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'inherit' }}>
       <Sidebar />
 
       {/* Main */}
@@ -544,7 +562,7 @@ function AddAttendanceModal({ employees, onClose, onSaved }) {
   }
 
   const ov = { position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center' }
-  const card = { background:'#fff', borderRadius:16, padding:28, width:420, boxShadow:'0 20px 60px rgba(0,0,0,0.25)', fontFamily:"'DM Sans',sans-serif" }
+  const card = { background:'#fff', borderRadius:16, padding:28, width:420, boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }
   const inp = { width:'100%', height:38, padding:'0 12px', borderRadius:8, border:`1px solid ${C.border}`, fontSize:13, color:C.text, outline:'none', boxSizing:'border-box' }
 
   return (

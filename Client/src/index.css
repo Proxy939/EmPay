@@ -204,3 +204,9 @@
 ::-webkit-scrollbar-track        { background: transparent; }
 ::-webkit-scrollbar-thumb        { background: oklch(0.58 0.22 292 / 30%); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover  { background: oklch(0.58 0.22 292 / 50%); }
+
+/* ─── Shimmer / skeleton animation for inline-style pages ────────────────── */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
+import { useTheme } from '@/lib/theme'
 import api from '@/lib/api'
 
-/* ── tokens ─── */
-const A='#4f46e5', T='#00b4d8', O='#f97316', R='#ef4444', BG='#f4f5f7'
-const card={background:'#fff',borderRadius:14,boxShadow:'0 2px 12px rgba(0,0,0,0.06)'}
+/* ── accent colors ─── */
+const A='#4f46e5', TC='#00b4d8', O='#f97316', R='#ef4444'
+
+/* ── theme-aware tokens ─── */
+function useT() {
+  const { colors } = useTheme()
+  return { bg:colors.bg, card:colors.card, text:colors.text, muted:colors.muted, border:colors.border, shadow:colors.shadow }
+}
+const card_s = (t) => ({background:t.card,borderRadius:14,boxShadow:t.shadow})
 const inr=v=>'₹'+Number(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})
 const YEARS=[2025,2024,2023,2022]
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -63,6 +70,8 @@ function EmptyState(){
 
 /* ── Form Card ─── */
 function FormCard({employees,onGenerate,onReset,loading,generated,selEmp,setSelEmp,selYear,setSelYear}){
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const [err,setErr]=useState('')
   const handleGen=()=>{
     if(!selEmp||!selYear){setErr('Please select both an employee and a year');return}
@@ -159,6 +168,8 @@ function FormCard({employees,onGenerate,onReset,loading,generated,selEmp,setSelE
 
 /* ── PRINT PREVIEW ──────────────────────────────── */
 function PrintPreview({emp,year}){
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const TH={padding:'9px 14px',textAlign:'left',color:'#fff',fontWeight:700,fontSize:12}
   const TD={padding:'8px 14px',fontSize:12,borderBottom:'1px solid #f3f4f6'}
   const TDr={...TD,color:R}
@@ -180,7 +191,7 @@ function PrintPreview({emp,year}){
             <p style={{margin:0,fontSize:11,color:'#9ca3af'}}>Human Resource Management System</p>
           </div>
         </div>
-        <p style={{margin:'0 0 16px',fontSize:20,fontWeight:800,color:T,letterSpacing:'-0.01em'}}>
+        <p style={{margin:'0 0 16px',fontSize:20,fontWeight:800,color:TC,letterSpacing:'-0.01em'}}>
           Salary Statement Report
         </p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:12}}>
@@ -197,7 +208,7 @@ function PrintPreview({emp,year}){
         {/* ── Main salary table ── */}
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
           <thead>
-            <tr style={{background:T}}>
+            <tr style={{background:TC}}>
               {['Salary Components','Monthly Amount','Yearly Amount'].map(h=>(
                 <th key={h} style={TH}>{h}</th>
               ))}
@@ -243,7 +254,7 @@ function PrintPreview({emp,year}){
             </tr>
 
             {/* Net salary */}
-            <tr style={{background:T}}>
+            <tr style={{background:TC}}>
               <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>Net Salary</td>
               <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>{inr(NET)}</td>
               <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>{inr(NET*12)}</td>
@@ -305,6 +316,8 @@ function PrintPreview({emp,year}){
 
 /* ── SHIMMER SKELETON (report placeholder) ──────── */
 function ReportSkeleton(){
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   return(
     <div style={{...card,padding:24,display:'flex',flexDirection:'column',gap:10}}>
       <Shimmer h={28} w="60%"/>
@@ -316,7 +329,6 @@ function ReportSkeleton(){
 
 /* ── PRINT CSS ──────────────────────────────────── */
 const PRINT_CSS=`
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 @media print {
   body * { visibility: hidden !important; }
@@ -328,6 +340,8 @@ const PRINT_CSS=`
 
 /* ── MAIN REPORTS PAGE ──────────────────────────── */
 export default function Reports(){
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const [selEmp,setSelEmp]=useState(null)
   const [selYear,setSelYear]=useState(null)
   const [generated,setGenerated]=useState(false)
@@ -360,13 +374,13 @@ export default function Reports(){
   const selEmpObj=empList.find(e=>(e.id||e.code)===selEmp)||null
 
   return(
-    <div style={{display:'flex',minHeight:'100vh',background:BG,fontFamily:"'Plus Jakarta Sans','Inter',sans-serif"}}>
+    <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'inherit'}}>
       <style>{PRINT_CSS}</style>
       <Sidebar/>
       <div style={{flex:1,marginLeft:64,padding:'28px 28px 48px',minWidth:0}}>
         {/* Title */}
         <div style={{marginBottom:22}}>
-          <h1 style={{margin:0,fontSize:22,fontWeight:800,color:'#111827'}}>Reports</h1>
+          <h1 style={{margin:0,fontSize:22,fontWeight:800,color:t.text}}>Reports</h1>
           <p style={{margin:'4px 0 0',fontSize:12,color:'#9ca3af',display:'flex',alignItems:'center',gap:6}}>
             <span style={{background:'#fef3c7',color:'#d97706',padding:'2px 8px',borderRadius:999,fontWeight:700,fontSize:11}}>🔒 Admin &amp; Payroll Officer only</span>
           </p>

@@ -1,11 +1,22 @@
 import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import Sidebar from '@/components/layout/Sidebar'
+import { useTheme } from '@/lib/theme'
 
-/* ── Design tokens ─────────────────────────────── */
-const A = '#4f46e5', T = '#00b4d8', G = '#22c55e', O = '#f97316', R = '#ef4444'
-const BG = '#f4f5f7'
-const card = { background:'#fff', borderRadius:14, boxShadow:'0 2px 12px rgba(0,0,0,0.06)', padding:'20px 22px' }
+/* ── Accent colors (static for charts) ───────────── */
+const A = '#4f46e5', TC = '#00b4d8', G = '#22c55e', O = '#f97316', R = '#ef4444'
+
+/* ── Theme-aware token getter ──────────────────── */
+function useT() {
+  const { colors } = useTheme()
+  return {
+    bg: colors.bg, card: colors.card, text: colors.text,
+    muted: colors.muted, border: colors.border, shadow: colors.shadow,
+    inputBg: colors.inputBg || colors.card,
+    tableBg: colors.tableBg || colors.card,
+    hover: colors.hover || colors.card,
+  }
+}
 const inr = v => '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 })
 const pill = (bg, color) => ({ background:bg, color, padding:'3px 11px', borderRadius:999, fontSize:11, fontWeight:700, display:'inline-block' })
 
@@ -47,35 +58,37 @@ const Toggle = ({val,set}) => (
   </div>
 )
 
-const ChartCard = ({title,data,color,mode,onMode}) => (
-  <div style={{...card,flex:1,minWidth:0}}>
+const ChartCard = ({title,data,color,mode,onMode, t}) => (
+  <div style={{background:t.card,borderRadius:14,boxShadow:t.shadow,padding:'20px 22px',flex:1,minWidth:0}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-      <span style={{fontWeight:700,fontSize:14}}>{title}</span>
+      <span style={{fontWeight:700,fontSize:14,color:t.text}}>{title}</span>
       <Toggle val={mode} set={onMode}/>
     </div>
     <ResponsiveContainer width="100%" height={140}>
       <BarChart data={data[mode]} margin={{top:4,right:4,left:0,bottom:0}}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-        <XAxis dataKey="m" tick={{fontSize:10}} axisLine={false} tickLine={false}/>
-        <YAxis tick={{fontSize:10}} width={48} axisLine={false} tickLine={false}/>
-        <Tooltip formatter={v=>inr(v)}/>
+        <CartesianGrid strokeDasharray="3 3" stroke={t.border}/>
+        <XAxis dataKey="m" tick={{fontSize:10,fill:t.text}} axisLine={false} tickLine={false}/>
+        <YAxis tick={{fontSize:10,fill:t.text}} width={48} axisLine={false} tickLine={false}/>
+        <Tooltip formatter={v=>inr(v)} contentStyle={{background:t.card,borderColor:t.border,color:t.text}}/>
         <Bar dataKey="v" fill={color} radius={[4,4,0,0]}/>
       </BarChart>
     </ResponsiveContainer>
   </div>
 )
 
-/* ── DASHBOARD TAB ─────────────────────────────── */
+/* ── DASHBOARD TAB ───────────────────────────────── */
 function DashboardTab({employees}) {
+  const t = useT()
+  const card = { background:t.card, borderRadius:14, boxShadow:t.shadow, padding:'20px 22px' }
   const [cm,setCm]=useState('annually'), [em,setEm]=useState('annually')
   const noBank=employees.filter(e=>!e.bankAccountNumber).length
   const noMgr =employees.filter(e=>!e.managerId).length
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:20}}>
+    <div style={{display:'flex',flexDirection:'column',gap:20,fontFamily:'inherit'}}>
       {/* Search */}
       <input placeholder="🔍  Search Member Or Category    ⌘ + F" style={{
-        width:'100%',padding:'11px 16px',borderRadius:10,border:'1px solid #e5e7eb',
-        fontSize:13,outline:'none',boxSizing:'border-box',background:'#fff',color:'#374151'
+        width:'100%',padding:'11px 16px',borderRadius:10,border:`1px solid ${t.border}`,
+        fontSize:13,outline:'none',boxSizing:'border-box',background:t.card,color:t.text
       }}/>
 
       {/* Stat cards */}
@@ -88,13 +101,13 @@ function DashboardTab({employees}) {
         </div>
         <div style={card}>
           <div style={{width:36,height:36,background:'#e0f7fa',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:10,fontSize:18}}>💰</div>
-          <p style={{margin:0,fontSize:12,color:'#6b7280',fontWeight:500}}>Monthly Payroll</p>
+          <p style={{margin:0,fontSize:12,color:t.muted,fontWeight:500}}>Monthly Payroll</p>
           <p style={{margin:'7px 0 10px',fontSize:24,fontWeight:800,lineHeight:1}}>{inr(43800)}</p>
           <span style={pill('#fee2e2',R)}>▼ -18.24%</span>
         </div>
         <div style={card}>
           <div style={{width:36,height:36,background:'#ede9fe',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:10,fontSize:18}}>🏢</div>
-          <p style={{margin:0,fontSize:12,color:'#6b7280',fontWeight:500}}>Total Employer Cost</p>
+          <p style={{margin:0,fontSize:12,color:t.muted,fontWeight:500}}>Total Employer Cost</p>
           <p style={{margin:'7px 0 10px',fontSize:24,fontWeight:800,lineHeight:1}}>{inr(49800)}</p>
           <span style={pill('#dcfce7','#16a34a')}>▲ +24.92%</span>
         </div>
@@ -110,14 +123,14 @@ function DashboardTab({employees}) {
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
               borderLeft:`3px solid ${O}`,paddingLeft:12,marginBottom:10,paddingTop:2,paddingBottom:2}}>
               <span style={{fontSize:13}}>⚠ {noBank} Employee without Bank A/C</span>
-              <button style={{background:'none',border:'none',color:T,fontWeight:700,fontSize:12,cursor:'pointer'}}>Fix Now →</button>
+              <button style={{background:'none',border:'none',color:TC,fontWeight:700,fontSize:12,cursor:'pointer'}}>Fix Now →</button>
             </div>
           )}
           {noMgr>0&&(
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
               borderLeft:`3px solid ${O}`,paddingLeft:12,paddingTop:2,paddingBottom:2}}>
               <span style={{fontSize:13}}>⚠ {noMgr} Employee without Manager</span>
-              <button style={{background:'none',border:'none',color:T,fontWeight:700,fontSize:12,cursor:'pointer'}}>Fix Now →</button>
+              <button style={{background:'none',border:'none',color:TC,fontWeight:700,fontSize:12,cursor:'pointer'}}>Fix Now →</button>
             </div>
           )}
         </div>
@@ -125,8 +138,8 @@ function DashboardTab({employees}) {
 
       {/* Charts */}
       <div style={{display:'flex',gap:16}}>
-        <ChartCard title="Employer Cost" data={COST_D} color={A} mode={cm} onMode={setCm}/>
-        <ChartCard title="Employee Count" data={CNT_D} color={T} mode={em} onMode={setEm}/>
+        <ChartCard title="Employer Cost" data={COST_D} color={A} mode={cm} onMode={setCm} t={t}/>
+        <ChartCard title="Employee Count" data={CNT_D} color={TC} mode={em} onMode={setEm} t={t}/>
       </div>
     </div>
   )
@@ -134,12 +147,14 @@ function DashboardTab({employees}) {
 
 /* ── PAYRUN LIST ────────────────────────────────── */
 function PayrunList({onOpen}) {
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const [filter,setFilter]=useState('All')
   const filters=['All','Pending','In Progress','Validated','Done']
   const rows=filter==='All'?PAYRUNS:PAYRUNS.filter(r=>r.status===filter)
-  const TH={padding:'11px 16px',textAlign:'left',fontSize:11,fontWeight:700,color:'#6b7280',
-    borderBottom:'1px solid #f3f4f6',textTransform:'uppercase',letterSpacing:'0.05em'}
-  const TD={padding:'12px 16px',fontSize:13}
+  const TH={padding:'11px 16px',textAlign:'left',fontSize:11,fontWeight:700,color:t.muted,
+    borderBottom:`1px solid ${t.border}`,textTransform:'uppercase',letterSpacing:'0.05em'}
+  const TD={padding:'12px 16px',fontSize:13,color:t.text}
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
@@ -187,9 +202,11 @@ function PayrunList({onOpen}) {
 
 /* ── PAYSLIP LIST ───────────────────────────────── */
 function PayslipList({payrun,onView,onBack}) {
-  const TH={padding:'11px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:'#6b7280',
-    borderBottom:'1px solid #f3f4f6',textTransform:'uppercase',letterSpacing:'0.04em'}
-  const TD={padding:'11px 14px',fontSize:13}
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
+  const TH={padding:'11px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:t.muted,
+    borderBottom:`1px solid ${t.border}`,textTransform:'uppercase',letterSpacing:'0.04em'}
+  const TD={padding:'11px 14px',fontSize:13,color:t.text}
   return (
     <div>
       {/* Breadcrumb */}
@@ -496,7 +513,7 @@ function PDFPreview({payslip,payrun,onClose}) {
           </table>
 
           {/* Net payable */}
-          <div style={{background:T,borderRadius:10,padding:'14px 20px',color:'#fff',
+          <div style={{background:TC,borderRadius:10,padding:'14px 20px',color:'#fff',
             display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <span style={{fontSize:13,fontWeight:600}}>Total Net Payable (Gross – Deductions)</span>
             <div style={{textAlign:'right'}}>
@@ -512,6 +529,7 @@ function PDFPreview({payslip,payrun,onClose}) {
 
 /* ── MAIN PAYROLL PAGE (unified — no tabs) ──────── */
 export default function Payroll() {
+  const t = useT()
   const [view,setView]=useState('list')   // 'list' | 'payslips' | 'detail' | 'pdf'
   const [selPayrun,setSelPayrun]=useState(null)
   const [selPayslip,setSelPayslip]=useState(null)
@@ -528,13 +546,12 @@ export default function Payroll() {
   const closeDetail = ()  => setView('payslips')
 
   return (
-    <div style={{display:'flex',minHeight:'100vh',background:BG,fontFamily:"'Plus Jakarta Sans','Inter',sans-serif"}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');`}</style>
+    <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'inherit'}}>
       <Sidebar/>
       <div style={{flex:1,marginLeft:64,padding:'28px 28px 40px',minWidth:0,overflowX:'hidden'}}>
 
         {/* ── Page title ── */}
-        <h1 style={{margin:'0 0 22px',fontSize:22,fontWeight:800,color:'#111827'}}>Payroll</h1>
+        <h1 style={{margin:'0 0 22px',fontSize:22,fontWeight:800,color:t.text}}>Payroll</h1>
 
         {/* ── Default view: dashboard stats + payrun list ── */}
         {view==='list' && (

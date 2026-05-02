@@ -2,39 +2,43 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Mail, Link2, UserPlus, Download, Calendar, MoreHorizontal, Eye } from 'lucide-react'
 import Sidebar from '@/components/layout/Sidebar'
+import { useTheme } from '@/lib/theme'
 import api from '@/lib/api'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend,
 } from 'recharts'
 
-// ─── Google Font ──────────────────────────────────────────────────────────────
-const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
-
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-const T = {
-  bg:      '#f7f8fc',
-  white:   '#ffffff',
+// ─── Design Tokens (theme-aware) ──────────────────────────────────────────────
+// Static accent colors used by charts — not themeable since recharts needs hex
+const ACCENT = {
   indigo:  '#4f46e5',
   indigoL: '#eef2ff',
   teal:    '#00b4d8',
+  cyan:    '#06b6d4',
   green:   '#22c55e',
   purple:  '#8b5cf6',
   amber:   '#f59e0b',
   red:     '#ef4444',
-  text:    '#111827',
-  muted:   '#6b7280',
-  border:  '#e5e7eb',
-  card:    '#ffffff',
-  shadow:  '0 2px 12px rgba(0,0,0,0.05)',
-  radius:  14,
 }
 
-const card = {
-  background: T.card,
-  borderRadius: T.radius,
-  boxShadow: T.shadow,
-  padding: '20px 22px',
+// Theme-aware token getter — call inside components that have access to useTheme()
+function useT() {
+  const { colors } = useTheme()
+  return {
+    ...ACCENT,
+    bg:      colors.bg,
+    white:   colors.card,
+    text:    colors.text,
+    muted:   colors.muted,
+    border:  colors.border,
+    card:    colors.card,
+    shadow:  colors.shadow,
+    radius:  14,
+  }
 }
+
+// Global fallback for components that don't call useT() directly
+const T = ACCENT
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 const MOCK_OVERVIEW = {
@@ -92,10 +96,14 @@ function AvatarInitials({ name='', size=32 }) {
 }
 
 function Skeleton({ w='100%', h=16, r=8 }) {
+  const { theme } = useTheme()
+  const light = theme === 'dark'
+    ? 'linear-gradient(90deg,#1e1e2e 25%,#2a2a3e 50%,#1e1e2e 75%)'
+    : 'linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%)'
   return (
     <div style={{
       width:w, height:h, borderRadius:r,
-      background:'linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%)',
+      background:light,
       backgroundSize:'200% 100%',
       animation:'shimmer 1.4s infinite',
     }}/>
@@ -120,6 +128,7 @@ function StatusPill({ status }) {
 // ─── Top Bar ──────────────────────────────────────────────────────────────────
 function TopBar({ userName }) {
   const navigate = useNavigate()
+  const T = useT()
   const AVTS = ['#4f46e5','#00b4d8','#22c55e']
   return (
     <div style={{
@@ -180,6 +189,7 @@ function TopBar({ userName }) {
 
 // ─── Greeting + Date Row ──────────────────────────────────────────────────────
 function GreetingBar({ userName, dateRange, setDateRange }) {
+  const T = useT()
   const hr = new Date().getHours()
   const greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening'
   return (
@@ -210,6 +220,8 @@ function GreetingBar({ userName, dateRange, setDateRange }) {
 
 // ─── Card 1: Total Employees ─────────────────────────────────────────────────
 function TotalEmployeesCard({ data, loading }) {
+  const T = useT()
+  const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
   const total    = data?.totalEmployees    ?? 0
   const onLeave  = data?.onLeaveToday      ?? 0
   return (
@@ -267,6 +279,8 @@ function TotalEmployeesCard({ data, loading }) {
 
 // ─── Card 2: Attendance Overview ──────────────────────────────────────────────
 function AttendanceOverviewCard({ data, loading }) {
+  const T = useT()
+  const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
   const rate    = data?.attendanceRate  ?? 0
   const present = data?.checkedInToday  ?? 0
   const leave   = data?.onLeaveToday    ?? 0
@@ -330,6 +344,8 @@ function AttendanceOverviewCard({ data, loading }) {
 
 // ─── Card 3: Today's Work Status (Gauge) ──────────────────────────────────────
 function WorkStatusCard({ data, loading }) {
+  const T = useT()
+  const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
   const present = data?.checkedInToday ?? 0
   const leave   = data?.onLeaveToday   ?? 0
   const absent  = data?.absentToday    ?? 0
@@ -406,17 +422,19 @@ function WorkStatusCard({ data, loading }) {
 
 // ─── Card: Employee Attendance Performance (horizontal bars) ─────────────────
 function EmployeePerformanceCard({ data, loading }) {
+  const T = useT()
+  const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
   const rows = data?.length > 0 ? data : MOCK_ATTENDANCE_TREND
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
     return (
-      <div style={{ background:T.text, color:'#fff', borderRadius:10, padding:'10px 14px', fontSize:12 }}>
+      <div style={{ background:T.text, color:T.white, borderRadius:10, padding:'10px 14px', fontSize:12 }}>
         <p style={{ margin:'0 0 6px', fontWeight:700 }}>{label}</p>
         {payload.map((p,i)=>(
           <div key={i} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
             <div style={{ width:8, height:8, borderRadius:'50%', background:p.fill }}/>
-            <span style={{ color:'#d1d5db' }}>{p.name}:</span>
+            <span style={{ color:T.muted }}>{p.name}:</span>
             <span style={{ fontWeight:600 }}>{p.value} days</span>
           </div>
         ))}
@@ -448,7 +466,7 @@ function EmployeePerformanceCard({ data, loading }) {
               tickLine={false} axisLine={false} width={76}/>
             <Tooltip content={<CustomTooltip/>}/>
             <Bar dataKey="daysPresent" name="Days Present" fill={T.purple} radius={3}/>
-            <Bar dataKey="daysOnTime"  name="Days On Time" fill='#06b6d4'  radius={3}/>
+            <Bar dataKey="daysOnTime"  name="Days On Time" fill={T.cyan}  radius={3}/>
             <Bar dataKey="extraHours" name="Extra Hours"  fill={T.green}  radius={3}/>
           </BarChart>
         </ResponsiveContainer>
@@ -456,7 +474,7 @@ function EmployeePerformanceCard({ data, loading }) {
 
       {/* Legend */}
       <div style={{ display:'flex', gap:16, marginTop:12, flexWrap:'wrap' }}>
-        {[['Days Present',T.purple],['Days On Time','#06b6d4'],['Extra Hours',T.green]].map(([l,c])=>(
+        {[['Days Present',T.purple],['Days On Time',T.cyan],['Extra Hours',T.green]].map(([l,c])=>(
           <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:T.muted }}>
             <div style={{ width:8, height:8, borderRadius:'50%', background:c }}/>
             <span>{l}</span>
@@ -469,6 +487,8 @@ function EmployeePerformanceCard({ data, loading }) {
 
 // ─── Card: Payroll Statistics (grouped bar + color swatches) ──────────────────
 function PayrollStatsCard({ data, loading }) {
+  const T = useT()
+  const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
   const [barColor, setBarColor] = useState('#8b5cf6')
   const [activeColor, setActiveColor] = useState(0)
   const rows = data?.length > 0 ? data : MOCK_COST_TREND
@@ -478,12 +498,12 @@ function PayrollStatsCard({ data, loading }) {
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
     return (
-      <div style={{ background:T.text, color:'#fff', borderRadius:10, padding:'10px 14px', fontSize:12 }}>
+      <div style={{ background:T.text, color:T.white, borderRadius:10, padding:'10px 14px', fontSize:12 }}>
         <p style={{ margin:'0 0 8px', fontWeight:700 }}>{label} 2025</p>
         {payload.map((p,i) => (
           <div key={i} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
             <div style={{ width:8, height:8, borderRadius:'50%', background:p.fill || barColor }}/>
-            <span style={{ color:'#d1d5db' }}>{p.name}:</span>
+            <span style={{ color:T.muted }}>{p.name}:</span>
             <span style={{ fontWeight:600 }}>₹{p.value?.toLocaleString()}</span>
           </div>
         ))}
@@ -548,6 +568,8 @@ function PayrollStatsCard({ data, loading }) {
 // ─── Employees Table ──────────────────────────────────────────────────────────
 function EmployeesTable({ employees, loading }) {
   const navigate = useNavigate()
+  const T = useT()
+  const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
   const [search, setSearch]   = useState('')
   const [status, setStatus]   = useState('all')
   const [role,   setRole]     = useState('all')
@@ -682,6 +704,7 @@ function EmployeesTable({ employees, loading }) {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const T = useT()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const userName = user?.name || 'there'
 
@@ -737,20 +760,7 @@ export default function Dashboard() {
 
   return (
     <>
-      {/* Google Font */}
-      <link rel="preconnect" href="https://fonts.googleapis.com"/>
-      <link href={FONT_LINK} rel="stylesheet"/>
-
-      {/* Shimmer keyframe */}
-      <style>{`
-        @keyframes shimmer {
-          0%   { background-position: 200% 0 }
-          100% { background-position: -200% 0 }
-        }
-        * { box-sizing: border-box; }
-      `}</style>
-
-      <div style={{ display:'flex', minHeight:'100vh', background:T.bg, fontFamily:"'Plus Jakarta Sans', sans-serif" }}>
+      <div style={{ display:'flex', minHeight:'100vh', background:T.bg, fontFamily:'inherit' }}>
         <Sidebar/>
 
         {/* Main content */}

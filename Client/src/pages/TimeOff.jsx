@@ -1,14 +1,21 @@
 import { useState, useMemo } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
+import { useTheme } from '@/lib/theme'
 
-/* ── tokens ── */
-const A='#4f46e5', T='#00b4d8', PU='#8b5cf6', AM='#f59e0b'
-const GR='#22c55e', RD='#ef4444', BG='#f4f5f7'
-const card={background:'#fff',borderRadius:14,boxShadow:'0 2px 12px rgba(0,0,0,0.06)'}
+/* ── accent colors ── */
+const A='#4f46e5', TC='#00b4d8', PU='#8b5cf6', AM='#f59e0b'
+const GR='#22c55e', RD='#ef4444'
+
+/* ── theme-aware tokens ── */
+function useT() {
+  const { colors } = useTheme()
+  return { bg:colors.bg, card:colors.card, text:colors.text, muted:colors.muted, border:colors.border, shadow:colors.shadow, hover:colors.hover }
+}
+const card_s = (t) => ({background:t.card,borderRadius:14,boxShadow:t.shadow})
 
 /* ── type meta ── */
 const TYPE={
-  'Paid Time Off': {color:T,bg:'#e0f7fa',icon:'🌴'},
+  'Paid Time Off': {color:TC,bg:'#e0f7fa',icon:'🌴'},
   'Sick Leave':    {color:PU,bg:'#f3e8ff',icon:'🏥'},
   'Unpaid Leave':  {color:AM,bg:'#fef3c7',icon:'📋'},
 }
@@ -50,8 +57,10 @@ const Btn=(p)=><button {...p} style={{padding:'6px 16px',borderRadius:8,border:'
 
 /* ── Balance Cards ── */
 function BalanceCards(){
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const cards=[
-    {type:'Paid Time Off', val:'24',  sub:'Days Available',color:T},
+    {type:'Paid Time Off', val:'24',  sub:'Days Available',color:TC},
     {type:'Sick Leave',    val:'07',  sub:'Days Available',color:PU},
     {type:'Unpaid Leave',  val:'∞',   sub:'No Limit',      color:AM},
   ]
@@ -73,9 +82,11 @@ function BalanceCards(){
 
 /* ── Leave table (shared) ── */
 function LeaveTable({rows,isAdmin,canApprove,onView,onApprove,onReject,rejectId,setRejectId,rejectReason,setRejectReason,onConfirmReject}){
-  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:'#6b7280',
-    borderBottom:'1px solid #f3f4f6',textTransform:'uppercase',letterSpacing:'0.05em'}
-  const TD={padding:'11px 14px',fontSize:13,borderBottom:'1px solid #f9f9f9'}
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
+  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:t.muted,
+    borderBottom:`1px solid ${t.border}`,textTransform:'uppercase',letterSpacing:'0.05em'}
+  const TD={padding:'11px 14px',fontSize:13,borderBottom:`1px solid ${t.border}`}
   return(
     <div style={{...card,padding:0,overflow:'hidden'}}>
       <table style={{width:'100%',borderCollapse:'collapse'}}>
@@ -187,6 +198,8 @@ function EmployeeView({onNew,onView,leaves,setLeaves}){
 
 /* ── ADMIN VIEW ─────────────────────────────────── */
 function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
+  const t = useT()
+  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const [tab,setTab]=useState('timeoff')
   const [filter,setFilter]=useState('All')
   const [search,setSearch]=useState('')
@@ -206,9 +219,9 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
     setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Rejected'}:r))
     setRejectId(null); setRejectReason('')
   }
-  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:'#6b7280',
-    borderBottom:'1px solid #f3f4f6',textTransform:'uppercase',letterSpacing:'0.05em'}
-  const TD={padding:'11px 14px',fontSize:13,borderBottom:'1px solid #f9f9f9'}
+  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:t.muted,
+    borderBottom:`1px solid ${t.border}`,textTransform:'uppercase',letterSpacing:'0.05em'}
+  const TD={padding:'11px 14px',fontSize:13,borderBottom:`1px solid ${t.border}`}
 
   return(
     <div>
@@ -252,7 +265,7 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
           </div>
           {/* balance strip */}
           <div style={{...card,padding:'12px 20px',marginBottom:14,background:'#eef2ff',display:'flex',gap:28,flexWrap:'wrap',alignItems:'center'}}>
-            {[['🌴','Paid Time Off','24 Days',T],['🏥','Sick Leave','07 Days',PU],['📋','Unpaid','No Limit',AM]].map(([ic,lbl,val,c])=>(
+            {[['🌴','Paid Time Off','24 Days',TC],['🏥','Sick Leave','07 Days',PU],['📋','Unpaid','No Limit',AM]].map(([ic,lbl,val,c])=>(
               <span key={lbl} style={{fontSize:13,fontWeight:600,color:c}}>{ic} {lbl} <span style={{color:'#374151',fontWeight:400}}>| {val}</span></span>
             ))}
             <span style={{fontSize:11,color:'#9ca3af',marginLeft:'auto'}}>Select a row to view individual balances</span>
@@ -489,6 +502,7 @@ const isAdminRole=r=>r!=='Employee'
 
 /* ── MAIN TIME OFF PAGE ─────────────────────────── */
 export default function TimeOff(){
+  const t = useT()
   const [role,setRole]=useState('Employee')
   const [leaves,setLeaves]=useState(MOCK_LEAVES)
   const [reqOpen,setReqOpen]=useState(false)
@@ -500,8 +514,7 @@ export default function TimeOff(){
   const approve=id=>setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r))
 
   return(
-    <div style={{display:'flex',minHeight:'100vh',background:BG,fontFamily:"'Plus Jakarta Sans','Inter',sans-serif"}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');`}</style>
+    <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'inherit'}}>
       <Sidebar/>
       <div style={{flex:1,marginLeft:64,padding:'28px 28px 48px',minWidth:0}}>
         {/* Role switcher */}

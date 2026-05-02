@@ -14,7 +14,6 @@ const C = {
   border:  '#e5e7eb', white:   '#ffffff',
   nav:     '#1a1d23',
 }
-const FONT = "'DM Sans', sans-serif"
 
 // ── Mock Employees ─────────────────────────────────────────────────────────────
 const MOCK_EMPLOYEES = [
@@ -189,7 +188,7 @@ function TimelineBar({ segments, dayOff }) {
       {/* Time markers */}
       <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 2 }}>
         {TIME_MARKERS.map(m => (
-          <span key={m} style={{ fontSize: 9, color: C.muted, fontFamily: FONT }}>{m}</span>
+          <span key={m} style={{ fontSize: 9, color: C.muted, fontFamily: 'inherit' }}>{m}</span>
         ))}
       </div>
 
@@ -230,7 +229,7 @@ function DayEntry({ day, onApprove, onReject }) {
       background: C.white, borderRadius: 10,
       border: `1px solid ${C.border}`,
       padding: '14px 16px', marginBottom: 10,
-      fontFamily: FONT,
+      fontFamily: 'inherit',
     }}>
       {/* Row 1: label + badge/actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -436,7 +435,7 @@ export default function AttendanceDetailModal({
         background: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '20px',
-        fontFamily: FONT,
+        fontFamily: 'inherit',
       }}
     >
       {/* Modal card */}
@@ -568,7 +567,7 @@ export default function AttendanceDetailModal({
                     height: 32, paddingLeft: 28, paddingRight: 10,
                     borderRadius: 8, border: `1px solid ${C.border}`,
                     background: '#f9fafb', fontSize: 12, color: C.text,
-                    outline: 'none', fontFamily: FONT, width: 140,
+                    outline: 'none', fontFamily: 'inherit', width: 140,
                   }}
                 />
               </div>
@@ -576,7 +575,7 @@ export default function AttendanceDetailModal({
                 padding: '6px 12px', borderRadius: 20,
                 border: `1px solid ${C.border}`, background: C.white,
                 fontSize: 12, fontWeight: 500, color: C.text, cursor: 'pointer',
-                fontFamily: FONT,
+                fontFamily: 'inherit',
               }}>All Status ▼</button>
             </div>
           </div>
