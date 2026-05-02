@@ -29,9 +29,11 @@ export default function AppLayout({ children, title, actions }) {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      {/* Fixed animated sidebar — sits above content */}
       <Sidebar />
 
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      {/* Main area — pl-16 always offsets the collapsed sidebar (64px) */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden pl-16">
         {/* Top Bar */}
         <header className="flex h-13 shrink-0 items-center justify-between gap-4 border-b border-border/50 bg-background/80 px-6 backdrop-blur-sm">
           <h1 className="text-sm font-semibold tracking-tight text-foreground">{title}</h1>
