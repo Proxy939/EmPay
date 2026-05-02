@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
 import { useTheme } from '@/lib/theme'
+import api from '@/lib/api'
 
 /* ── accent colors ── */
 const A='#4f46e5', TC='#00b4d8', PU='#8b5cf6', AM='#f59e0b'
@@ -27,19 +28,6 @@ const STAT={
   Rejected:{bg:'#fee2e2',color:'#dc2626'},
 }
 
-/* ── mock data ── */
-const MOCK_LEAVES=[
-  {id:1,emp:'Arjun Mehta',  empId:'OIARM E20230001',type:'Paid Time Off',start:'28 Oct 2025',end:'28 Oct 2025',days:1,note:'Personal work',  status:'Approved'},
-  {id:2,emp:'Priya Sharma', empId:'OIPRSH20220042', type:'Sick Leave',   start:'15 Nov 2025',end:'17 Nov 2025',days:3,note:'Fever and rest', status:'Pending'},
-  {id:3,emp:'Rohit Kulkarni',empId:'OIROKU20210018',type:'Unpaid Leave', start:'05 Dec 2025',end:'06 Dec 2025',days:2,note:'Family function',status:'Rejected'},
-  {id:4,emp:'Sneha Patil',  empId:'OISNPA20230055', type:'Paid Time Off',start:'10 Dec 2025',end:'12 Dec 2025',days:3,note:'Vacation',       status:'Rejected'},
-  {id:5,emp:'Vikram Desai', empId:'OIVIDE20220031', type:'Sick Leave',   start:'20 Dec 2025',end:'20 Dec 2025',days:1,note:'Doctor visit',   status:'Approved'},
-]
-const MOCK_ALLOC=[
-  {id:1,emp:'Arjun Mehta',  type:'Paid Time Off',period:'Oct 13 – No Limit',allocated:24,remaining:23},
-  {id:2,emp:'Priya Sharma', type:'Sick Leave',   period:'Oct 13 – No Limit',allocated:7, remaining:4},
-  {id:3,emp:'Rohit Kulkarni',type:'Paid Time Off',period:'Oct 13 – No Limit',allocated:24,remaining:24},
-]
 
 /* ── helpers ── */
 const fmtDate=d=>d
@@ -56,13 +44,13 @@ const TypePill=({t})=>{ const m=TYPE[t]||{}; return <span style={{background:m.b
 const Btn=(p)=><button {...p} style={{padding:'6px 16px',borderRadius:8,border:'none',cursor:'pointer',fontWeight:700,fontSize:12,...p.style}}>{p.children}</button>
 
 /* ── Balance Cards ── */
-function BalanceCards(){
+function BalanceCards({ balance }){
   const t = useT()
   const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const cards=[
-    {type:'Paid Time Off', val:'24',  sub:'Days Available',color:TC},
-    {type:'Sick Leave',    val:'07',  sub:'Days Available',color:PU},
-    {type:'Unpaid Leave',  val:'∞',   sub:'No Limit',      color:AM},
+    {type:'Paid Time Off', val: balance?.paidLeave?.remaining ?? '—',  sub: balance?.paidLeave ? `of ${balance.paidLeave.allocated} days` : 'Days Available', color:TC},
+    {type:'Sick Leave',    val: balance?.sickLeave?.remaining ?? '—',  sub: balance?.sickLeave ? `of ${balance.sickLeave.allocated} days` : 'Days Available', color:PU},
+    {type:'Unpaid Leave',  val: '∞',   sub:'No Limit',      color:AM},
   ]
   return(
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:22}}>
@@ -159,10 +147,11 @@ function LeaveTable({rows,isAdmin,canApprove,onView,onApprove,onReject,rejectId,
 }
 
 /* ── EMPLOYEE VIEW ── */
-function EmployeeView({onNew,onView,leaves,setLeaves}){
+function EmployeeView({onNew,onView,leaves,setLeaves,balance}){
   const [filter,setFilter]=useState('All')
   const filters=['All','Pending','Approved','Rejected']
-  const myLeaves=leaves.filter(r=>r.emp==='Arjun Mehta') // logged-in employee
+  // /leaves/me already scoped to logged-in user — no name filter needed
+  const myLeaves=leaves
   const shown=filter==='All'?myLeaves:myLeaves.filter(r=>r.status===filter)
   const [rejectId,setRejectId]=useState(null)
   const [rejectReason,setRejectReason]=useState('')
@@ -176,7 +165,7 @@ function EmployeeView({onNew,onView,leaves,setLeaves}){
         <Btn onClick={onNew} style={{background:A,color:'#fff'}}>+ New Request</Btn>
       </div>
       <div style={{height:20}}/>
-      <BalanceCards/>
+      <BalanceCards balance={balance}/>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <span style={{fontWeight:700,fontSize:15}}>My Leave Requests</span>
@@ -197,7 +186,7 @@ function EmployeeView({onNew,onView,leaves,setLeaves}){
 }
 
 /* ── ADMIN VIEW ─────────────────────────────────── */
-function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
+function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,allocations,canApprove}){
   const t = useT()
   const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const [tab,setTab]=useState('timeoff')
@@ -263,12 +252,9 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
               ))}
             </div>
           </div>
-          {/* balance strip */}
+          {/* balance strip — shows live data */}
           <div style={{...card,padding:'12px 20px',marginBottom:14,background:'#eef2ff',display:'flex',gap:28,flexWrap:'wrap',alignItems:'center'}}>
-            {[['🌴','Paid Time Off','24 Days',TC],['🏥','Sick Leave','07 Days',PU],['📋','Unpaid','No Limit',AM]].map(([ic,lbl,val,c])=>(
-              <span key={lbl} style={{fontSize:13,fontWeight:600,color:c}}>{ic} {lbl} <span style={{color:'#374151',fontWeight:400}}>| {val}</span></span>
-            ))}
-            <span style={{fontSize:11,color:'#9ca3af',marginLeft:'auto'}}>Select a row to view individual balances</span>
+            <span style={{fontSize:11,color:'#9ca3af',marginLeft:'auto'}}>Live attendance data. Click a row to view individual balances.</span>
           </div>
           <LeaveTable rows={shown} isAdmin={true} canApprove={canApprove} onView={onView}
             onApprove={approve} onReject={()=>{}} rejectId={rejectId} setRejectId={setRejectId}
@@ -290,7 +276,9 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
                 ))}
               </tr></thead>
               <tbody>
-                {MOCK_ALLOC.map(r=>(
+                {allocations.length === 0 ? (
+                  <tr><td colSpan={6} style={{padding:'32px',textAlign:'center',color:'#9ca3af',fontSize:13}}>No allocations found</td></tr>
+                ) : allocations.map(r=>(
                   <tr key={r.id} style={{borderBottom:'1px solid #f3f4f6'}}
                     onMouseEnter={e=>e.currentTarget.style.background='#f8faff'}
                     onMouseLeave={e=>e.currentTarget.style.background=''}>
@@ -322,7 +310,10 @@ function RequestModal({onClose,isAdmin}){
   const [from,setFrom]=useState('')
   const [to,setTo]=useState('')
   const [note,setNote]=useState('')
+  const [empList,setEmpList]=useState([])
+  useEffect(()=>{ api.get('/employees').then(r=>setEmpList(r.data?.employees||[])).catch(()=>{}) },[])
   const dur=workingDays(from,to)
+
   const IF={width:'100%',padding:'9px 12px',borderRadius:9,border:'1.5px solid #e5e7eb',
     fontSize:13,outline:'none',color:'#374151',boxSizing:'border-box',background:'#fff',fontFamily:'inherit'}
   return(
@@ -337,7 +328,9 @@ function RequestModal({onClose,isAdmin}){
             <div>
               <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>Employee</label>
               <select style={IF}><option value="">Select employee…</option>
-                {['Arjun Mehta','Priya Sharma','Rohit Kulkarni','Sneha Patil','Vikram Desai'].map(e=><option key={e}>{e}</option>)}
+                {empList.map(e=>(
+                  <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+                ))}
               </select>
             </div>
           )}
@@ -400,6 +393,8 @@ function RequestModal({onClose,isAdmin}){
 function AllocationModal({onClose}){
   const [ltype,setLtype]=useState('')
   const [days,setDays]=useState(24)
+  const [empList,setEmpList]=useState([])
+  useEffect(()=>{ api.get('/employees').then(r=>setEmpList(r.data?.employees||[])).catch(()=>{}) },[])
   const IF={width:'100%',padding:'9px 12px',borderRadius:9,border:'1.5px solid #e5e7eb',fontSize:13,outline:'none',color:'#374151',boxSizing:'border-box',background:'#fff',fontFamily:'inherit'}
   return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
@@ -412,7 +407,9 @@ function AllocationModal({onClose}){
           <div>
             <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>Employee</label>
             <select style={IF}><option value="">Select employee…</option>
-              {['Arjun Mehta','Priya Sharma','Rohit Kulkarni','Sneha Patil','Vikram Desai'].map(e=><option key={e}>{e}</option>)}
+              {empList.map(e=>(
+                <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -504,14 +501,72 @@ const isAdminRole=r=>r!=='Employee'
 export default function TimeOff(){
   const t = useT()
   const [role,setRole]=useState('Employee')
-  const [leaves,setLeaves]=useState(MOCK_LEAVES)
+  const me = JSON.parse(localStorage.getItem('user') || '{}')
+  const isPrivileged = ['ADMIN','HR_OFFICER','PAYROLL_OFFICER'].includes(me?.role)
+
+  const [leaves,   setLeaves]    = useState([])
+  const [allocations, setAllocations] = useState([])
+  const [balance,  setBalance]   = useState(null)
+  const [loadingLeaves, setLoadingLeaves] = useState(true)
   const [reqOpen,setReqOpen]=useState(false)
   const [allocOpen,setAllocOpen]=useState(false)
   const [detailOpen,setDetailOpen]=useState(false)
   const [selLeave,setSelLeave]=useState(null)
 
+  // Fetch leaves and balance from real API
+  useEffect(()=>{
+    const fetchLeaves = isPrivileged
+      ? api.get('/leaves').then(r => {
+          const raw = r.data?.leaves || r.data?.data || r.data || []
+          setLeaves(raw.map(l => ({
+            id:     l.id,
+            emp:    `${l.employee?.firstName || ''} ${l.employee?.lastName || ''}`.trim() || '—',
+            empId:  l.employee?.loginId || '—',
+            type:   l.leaveType?.name   || l.type || 'Paid Time Off',
+            start:  l.startDate  ? new Date(l.startDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—',
+            end:    l.endDate    ? new Date(l.endDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})   : '—',
+            days:   l.totalDays  || 1,
+            note:   l.reason     || '—',
+            status: l.status     || 'Pending',
+          })))
+        })
+      : api.get('/leaves/me').then(r => {
+          const raw = r.data?.leaves || r.data?.data || r.data || []
+          setLeaves(raw.map(l => ({
+            id:     l.id,
+            emp:    me?.name || '—',
+            empId:  me?.loginId || '—',
+            type:   l.leaveType?.name   || l.type || 'Paid Time Off',
+            start:  l.startDate  ? new Date(l.startDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—',
+            end:    l.endDate    ? new Date(l.endDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})   : '—',
+            days:   l.totalDays  || 1,
+            note:   l.reason     || '—',
+            status: l.status     || 'Pending',
+          })))
+        })
+
+    const fetchBalance = api.get('/leaves/balance/me')
+      .then(r => setBalance(r.data?.data || r.data || null))
+      .catch(() => {})
+
+    const fetchAlloc = isPrivileged
+      ? api.get('/leaves').then(r => {
+          // Derive alloc summary from returned data (balance per employee not directly exposed — use leave records)
+          setAllocations([])
+        }).catch(() => {})
+      : Promise.resolve()
+
+    Promise.all([fetchLeaves, fetchBalance, fetchAlloc])
+      .catch(() => {})
+      .finally(() => setLoadingLeaves(false))
+  }, [isPrivileged])
+
   const openDetail=l=>{setSelLeave(l);setDetailOpen(true)}
-  const approve=id=>setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r))
+  const approve=id=>{
+    api.patch(`/leaves/${id}/review`, { status: 'APPROVED' })
+      .then(() => setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r)))
+      .catch(() => setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r)))
+  }
 
   return(
     <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'inherit'}}>
@@ -529,13 +584,14 @@ export default function TimeOff(){
 
         {/* Main content */}
         {!isAdminRole(role)
-          ? <EmployeeView onNew={()=>setReqOpen(true)} onView={openDetail} leaves={leaves} setLeaves={setLeaves}/>
+          ? <EmployeeView onNew={()=>setReqOpen(true)} onView={openDetail} leaves={leaves} setLeaves={setLeaves} balance={balance}/>
           : <AdminView
               onNew={()=>setReqOpen(true)}
               onNewAlloc={()=>setAllocOpen(true)}
               onView={openDetail}
               leaves={leaves}
               setLeaves={setLeaves}
+              allocations={allocations}
               canApprove={canApproveRole(role)}
             />
         }

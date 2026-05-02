@@ -16,33 +16,6 @@ const inr=v=>'₹'+Number(v).toLocaleString('en-IN',{minimumFractionDigits:2,max
 const YEARS=[2025,2024,2023,2022]
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December']
 
-/* ── mock employees (fallback) ─── */
-const MOCK_EMPS=[
-  {id:'1',name:'Arjun Mehta',   code:'OIARM E20230001',dept:'Engineering', designation:'Senior Developer',  join:'20 June 2022'},
-  {id:'2',name:'Priya Sharma',  code:'OIPRSH20220042', dept:'HR',           designation:'HR Executive',      join:'15 March 2022'},
-  {id:'3',name:'Rohit Kulkarni',code:'OIROKU20210018', dept:'Finance',      designation:'Finance Analyst',   join:'10 Jan 2021'},
-  {id:'4',name:'Sneha Patil',   code:'OISNPA20230055', dept:'Engineering',  designation:'Frontend Developer',join:'01 Aug 2023'},
-  {id:'5',name:'Vikram Desai',  code:'OIVIDE20220031', dept:'Operations',   designation:'Operations Lead',   join:'12 May 2022'},
-  {id:'6',name:'Ananya Joshi',  code:'OIANJO20230072', dept:'Marketing',    designation:'Brand Manager',     join:'07 Nov 2023'},
-]
-
-/* ── salary data ─── */
-const EARNINGS=[
-  ['Basic Salary',25000],['House Rent Allowance',12500],['Standard Allowance',4167],
-  ['Performance Bonus',2082.5],['Leave Travel Allowance',2082.5],['Fixed Allowance',4168],
-]
-const DEDUCTIONS=[
-  ['PF Employee (6%)',-3000],['PF Employer (6%)',-3000],['Professional Tax',-200],['TDS Deduction',0],
-]
-const GROSS=EARNINGS.reduce((s,[,v])=>s+v,0)
-const TOTAL_DED=DEDUCTIONS.reduce((s,[,v])=>s+v,0)
-const NET=GROSS+TOTAL_DED
-
-const MONTHLY_DATA=MONTHS.map((m,i)=>({
-  month:m, working:[22,20,23,22,21,22,23,21,22,20,22,21][i],
-  leaves:2, gross:GROSS, ded:Math.abs(TOTAL_DED), net:NET
-}))
-const YR_TOTAL={working:259,leaves:24,gross:GROSS*12,ded:Math.abs(TOTAL_DED)*12,net:NET*12}
 
 /* ── Shimmer ─── */
 function Shimmer({h=18,w='100%',mb=10,r=8}){
@@ -77,7 +50,7 @@ function FormCard({employees,onGenerate,onReset,loading,generated,selEmp,setSelE
     if(!selEmp||!selYear){setErr('Please select both an employee and a year');return}
     setErr(''); onGenerate()
   }
-  const empList=employees.length>0?employees:MOCK_EMPS
+  const empList=employees
   const TF={width:'100%',padding:'9px 12px',borderRadius:9,border:'1.5px solid #e5e7eb',
     fontSize:13,outline:'none',color:'#374151',background:'#fff',boxSizing:'border-box',
     fontFamily:'inherit',appearance:'none',cursor:'pointer'}
@@ -167,17 +140,23 @@ function FormCard({employees,onGenerate,onReset,loading,generated,selEmp,setSelE
 }
 
 /* ── PRINT PREVIEW ──────────────────────────────── */
-function PrintPreview({emp,year}){
+function PrintPreview({emp, year, report}){
   const t = useT()
   const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const TH={padding:'9px 14px',textAlign:'left',color:'#fff',fontWeight:700,fontSize:12}
   const TD={padding:'8px 14px',fontSize:12,borderBottom:'1px solid #f3f4f6'}
   const TDr={...TD,color:R}
   const empName=emp?.name||`${emp?.firstName||''} ${emp?.lastName||''}`.trim()||'—'
-  const dept=emp?.dept||emp?.department||'Engineering'
-  const desig=emp?.designation||'Senior Developer'
-  const join=emp?.join||'20 June 2022'
+  const dept=emp?.dept||emp?.department||'—'
+  const desig=emp?.designation||'—'
+  const join=emp?.join||'—'
   const today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+
+  const monthly    = report?.monthly    || []
+  const yearly     = report?.yearly     || {totalWorkedDays:0,totalGross:0,totalDeductions:0,totalNet:0}
+  const components = report?.components || []
+  const deductions = report?.deductions || []
+  const noData = !report || monthly.every(m=>m.grossAmount===0)
 
   return(
     <div className="print-preview" style={{...card,border:'1.5px solid #e0e7ff',overflow:'hidden'}}>
@@ -200,105 +179,107 @@ function PrintPreview({emp,year}){
           <div><span style={{color:'#9ca3af'}}>Department :</span> <span>{dept}</span></div>
           <div><span style={{color:'#9ca3af'}}>Salary Year :</span> <strong>{year}</strong></div>
           <div><span style={{color:'#9ca3af'}}>Date of Joining :</span> <span style={{color:O,fontWeight:600}}>{join}</span></div>
-          <div><span style={{color:'#9ca3af'}}>Salary Effective From :</span> <span style={{color:O,fontWeight:600}}>01 July 2022</span></div>
+          <div><span style={{color:'#9ca3af'}}>Report Generated :</span> <span style={{color:O,fontWeight:600}}>{today}</span></div>
         </div>
       </div>
 
       <div style={{padding:'20px 28px',display:'flex',flexDirection:'column',gap:20}}>
-        {/* ── Main salary table ── */}
-        <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
-          <thead>
-            <tr style={{background:TC}}>
-              {['Salary Components','Monthly Amount','Yearly Amount'].map(h=>(
-                <th key={h} style={TH}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Earnings header */}
-            <tr style={{background:'#f8f9ff',borderLeft:`4px solid ${A}`}}>
-              <td colSpan={3} style={{padding:'7px 14px',fontWeight:800,fontSize:11,color:A,
-                textTransform:'uppercase',letterSpacing:'0.06em'}}>Earnings</td>
-            </tr>
-            {EARNINGS.map(([name,mo])=>(
-              <tr key={name} style={{borderBottom:'1px solid #f3f4f6'}}>
-                <td style={TD}>{name}</td>
-                <td style={TD}>{inr(mo)}</td>
-                <td style={TD}>{inr(mo*12)}</td>
-              </tr>
-            ))}
-            {/* Gross row */}
-            <tr style={{background:'#eef2ff'}}>
-              <td style={{...TD,fontWeight:800,color:A}}>Gross Earnings</td>
-              <td style={{...TD,fontWeight:800,color:A}}>{inr(GROSS)}</td>
-              <td style={{...TD,fontWeight:800,color:A}}>{inr(GROSS*12)}</td>
-            </tr>
-
-            {/* Deductions header */}
-            <tr style={{background:'#fff5f5',borderLeft:`4px solid ${R}`}}>
-              <td colSpan={3} style={{padding:'7px 14px',fontWeight:800,fontSize:11,color:R,
-                textTransform:'uppercase',letterSpacing:'0.06em'}}>Deductions</td>
-            </tr>
-            {DEDUCTIONS.map(([name,mo])=>(
-              <tr key={name} style={{borderBottom:'1px solid #f3f4f6'}}>
-                <td style={TD}>{name}</td>
-                <td style={mo<0?TDr:TD}>{mo<=0?inr(mo):inr(mo)}</td>
-                <td style={mo<0?TDr:TD}>{mo<=0?inr(mo*12):inr(mo*12)}</td>
-              </tr>
-            ))}
-            {/* Total deductions row */}
-            <tr style={{background:'#fff1f2'}}>
-              <td style={{...TD,fontWeight:800,color:R}}>Total Deductions</td>
-              <td style={{...TD,fontWeight:800,color:R}}>{inr(TOTAL_DED)}</td>
-              <td style={{...TD,fontWeight:800,color:R}}>{inr(TOTAL_DED*12)}</td>
-            </tr>
-
-            {/* Net salary */}
-            <tr style={{background:TC}}>
-              <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>Net Salary</td>
-              <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>{inr(NET)}</td>
-              <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>{inr(NET*12)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* ── Monthly breakdown ── */}
-        <div>
-          <p style={{margin:'0 0 12px',fontWeight:800,fontSize:14,color:A}}>
-            Monthly Breakdown — {year}
-          </p>
-          <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
-            <thead>
-              <tr style={{background:'#eef2ff'}}>
-                {['Month','Working Days','Paid Leaves','Gross','Deductions','Net'].map(h=>(
-                  <th key={h} style={{padding:'8px 10px',textAlign:'left',fontWeight:700,color:A,
-                    borderBottom:'2px solid #e0e7ff'}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {MONTHLY_DATA.map((r,i)=>(
-                <tr key={r.month} style={{background:i%2===0?'#fafbff':'#fff',borderBottom:'1px solid #f3f4f6'}}>
-                  <td style={{padding:'7px 10px',fontWeight:600}}>{r.month}</td>
-                  <td style={{padding:'7px 10px'}}>{r.working}</td>
-                  <td style={{padding:'7px 10px'}}>{r.leaves}</td>
-                  <td style={{padding:'7px 10px'}}>{inr(r.gross)}</td>
-                  <td style={{padding:'7px 10px',color:R}}>-{inr(r.ded)}</td>
-                  <td style={{padding:'7px 10px',fontWeight:600,color:A}}>{inr(r.net)}</td>
+        {noData ? (
+          <div style={{textAlign:'center',padding:'40px 20px',color:'#9ca3af',fontSize:13}}>
+            <div style={{fontSize:40,marginBottom:12}}>💰</div>
+            <p style={{margin:0,fontWeight:700,color:'#374151'}}>No payslips found for {year}</p>
+            <p style={{margin:'6px 0 0',fontSize:12}}>Run payroll for this employee first to generate the statement.</p>
+          </div>
+        ) : (
+          <>
+            {/* ── Earnings & Deductions summary ── */}
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+              <thead>
+                <tr style={{background:TC}}>
+                  {['Salary Components','Monthly Avg','Yearly Amount'].map(h=>(
+                    <th key={h} style={TH}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-              {/* Yearly total */}
-              <tr style={{background:'#eef2ff',fontWeight:800}}>
-                <td style={{padding:'9px 10px',color:A}}>Yearly Total</td>
-                <td style={{padding:'9px 10px',color:A}}>{YR_TOTAL.working}</td>
-                <td style={{padding:'9px 10px',color:A}}>{YR_TOTAL.leaves}</td>
-                <td style={{padding:'9px 10px',color:A}}>{inr(YR_TOTAL.gross)}</td>
-                <td style={{padding:'9px 10px',color:R}}>-{inr(YR_TOTAL.ded)}</td>
-                <td style={{padding:'9px 10px',color:A}}>{inr(YR_TOTAL.net)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                <tr style={{background:'#f8f9ff',borderLeft:`4px solid ${A}`}}>
+                  <td colSpan={3} style={{padding:'7px 14px',fontWeight:800,fontSize:11,color:A,
+                    textTransform:'uppercase',letterSpacing:'0.06em'}}>Earnings</td>
+                </tr>
+                {components.map(c=>(
+                  <tr key={c.name} style={{borderBottom:'1px solid #f3f4f6'}}>
+                    <td style={TD}>{c.name}</td>
+                    <td style={TD}>{inr((c.yearlyAmount||0)/12)}</td>
+                    <td style={TD}>{inr(c.yearlyAmount||0)}</td>
+                  </tr>
+                ))}
+                <tr style={{background:'#eef2ff'}}>
+                  <td style={{...TD,fontWeight:800,color:A}}>Gross Earnings</td>
+                  <td style={{...TD,fontWeight:800,color:A}}>{inr(yearly.totalGross/12)}</td>
+                  <td style={{...TD,fontWeight:800,color:A}}>{inr(yearly.totalGross)}</td>
+                </tr>
+                <tr style={{background:'#fff5f5',borderLeft:`4px solid ${R}`}}>
+                  <td colSpan={3} style={{padding:'7px 14px',fontWeight:800,fontSize:11,color:R,
+                    textTransform:'uppercase',letterSpacing:'0.06em'}}>Deductions</td>
+                </tr>
+                {deductions.map(d=>(
+                  <tr key={d.name} style={{borderBottom:'1px solid #f3f4f6'}}>
+                    <td style={TD}>{d.name}</td>
+                    <td style={TDr}>{inr((d.yearlyAmount||0)/12)}</td>
+                    <td style={TDr}>{inr(d.yearlyAmount||0)}</td>
+                  </tr>
+                ))}
+                <tr style={{background:'#fff1f2'}}>
+                  <td style={{...TD,fontWeight:800,color:R}}>Total Deductions</td>
+                  <td style={{...TD,fontWeight:800,color:R}}>{inr(yearly.totalDeductions/12)}</td>
+                  <td style={{...TD,fontWeight:800,color:R}}>{inr(yearly.totalDeductions)}</td>
+                </tr>
+                <tr style={{background:TC}}>
+                  <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>Net Salary</td>
+                  <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>{inr(yearly.totalNet/12)}</td>
+                  <td style={{padding:'12px 14px',fontWeight:800,fontSize:14,color:'#fff'}}>{inr(yearly.totalNet)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* ── Monthly breakdown ── */}
+            <div>
+              <p style={{margin:'0 0 12px',fontWeight:800,fontSize:14,color:A}}>
+                Monthly Breakdown — {year}
+              </p>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
+                <thead>
+                  <tr style={{background:'#eef2ff'}}>
+                    {['Month','Working Days','Paid Leaves','Gross','Deductions','Net'].map(h=>(
+                      <th key={h} style={{padding:'8px 10px',textAlign:'left',fontWeight:700,color:A,
+                        borderBottom:'2px solid #e0e7ff'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthly.map((r,i)=>(
+                    <tr key={r.month} style={{background:i%2===0?'#fafbff':'#fff',borderBottom:'1px solid #f3f4f6'}}>
+                      <td style={{padding:'7px 10px',fontWeight:600}}>{r.month}</td>
+                      <td style={{padding:'7px 10px'}}>{r.workedDays??0}</td>
+                      <td style={{padding:'7px 10px'}}>{r.paidLeaveDays??0}</td>
+                      <td style={{padding:'7px 10px'}}>{inr(r.grossAmount??0)}</td>
+                      <td style={{padding:'7px 10px',color:R}}>-{inr(r.totalDeductions??0)}</td>
+                      <td style={{padding:'7px 10px',fontWeight:600,color:A}}>{inr(r.netAmount??0)}</td>
+                    </tr>
+                  ))}
+                  <tr style={{background:'#eef2ff',fontWeight:800}}>
+                    <td style={{padding:'9px 10px',color:A}}>Yearly Total</td>
+                    <td style={{padding:'9px 10px',color:A}}>{yearly.totalWorkedDays}</td>
+                    <td style={{padding:'9px 10px',color:A}}>—</td>
+                    <td style={{padding:'9px 10px',color:A}}>{inr(yearly.totalGross)}</td>
+                    <td style={{padding:'9px 10px',color:R}}>-{inr(yearly.totalDeductions)}</td>
+                    <td style={{padding:'9px 10px',color:A}}>{inr(yearly.totalNet)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         {/* ── Footer ── */}
         <div style={{borderTop:'1px solid #e5e7eb',paddingTop:14,textAlign:'center'}}>
@@ -347,6 +328,8 @@ export default function Reports(){
   const [generated,setGenerated]=useState(false)
   const [loading,setLoading]=useState(false)
   const [employees,setEmployees]=useState([])
+  const [report,setReport]=useState(null)
+  const [reportError,setReportError]=useState(null)
 
   // fetch real employees
   useEffect(()=>{
@@ -363,15 +346,23 @@ export default function Reports(){
     }).catch(()=>{})
   },[])
 
-  const empList=employees.length>0?employees:MOCK_EMPS
-
   const handleGenerate=()=>{
-    setLoading(true); setGenerated(false)
-    setTimeout(()=>{ setLoading(false); setGenerated(true) },600)
+    if(!selEmp || !selYear) return
+    setLoading(true); setGenerated(false); setReport(null); setReportError(null)
+    api.get(`/reports/salary-statement?employeeId=${selEmp}&year=${selYear}`)
+      .then(r => {
+        setReport(r.data?.data || null)
+        setGenerated(true)
+      })
+      .catch(err => {
+        setReportError(err?.response?.data?.message || 'Failed to generate report')
+        setGenerated(true) // still show panel with error
+      })
+      .finally(() => setLoading(false))
   }
-  const handleReset=()=>{ setSelEmp(null); setSelYear(null); setGenerated(false); setLoading(false) }
+  const handleReset=()=>{ setSelEmp(null); setSelYear(null); setGenerated(false); setLoading(false); setReport(null); setReportError(null) }
 
-  const selEmpObj=empList.find(e=>(e.id||e.code)===selEmp)||null
+  const selEmpObj=employees.find(e=>(e.id||e.code)===selEmp)||null
 
   return(
     <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'inherit'}}>
@@ -390,7 +381,7 @@ export default function Reports(){
         <div style={{display:'flex',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
           {/* Left: form */}
           <FormCard
-            employees={empList}
+            employees={employees}
             onGenerate={handleGenerate}
             onReset={handleReset}
             loading={loading}
@@ -403,8 +394,14 @@ export default function Reports(){
           <div style={{flex:1,minWidth:320}}>
             {loading && <ReportSkeleton/>}
             {!loading && !generated && <div style={{...card,overflow:'hidden'}}><EmptyState/></div>}
-            {!loading && generated && selEmpObj && selYear && (
-              <PrintPreview emp={selEmpObj} year={selYear}/>
+            {!loading && generated && reportError && (
+              <div style={{...card,padding:'32px',textAlign:'center',color:R}}>
+                <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
+                <p style={{margin:0,fontWeight:700}}>{reportError}</p>
+              </div>
+            )}
+            {!loading && generated && !reportError && selEmpObj && selYear && (
+              <PrintPreview emp={selEmpObj} year={selYear} report={report}/>
             )}
           </div>
         </div>

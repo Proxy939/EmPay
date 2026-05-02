@@ -37,47 +37,6 @@ function useT() {
   }
 }
 
-// Global fallback for components that don't call useT() directly
-const T = ACCENT
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_OVERVIEW = {
-  totalEmployees: 150, checkedInToday: 120,
-  onLeaveToday: 18, absentToday: 12,
-  attendanceRate: 87, pendingLeaveRequests: 8, payrollWarnings: 2,
-}
-
-const MOCK_ATTENDANCE_TREND = [
-  { name: 'Arjun Mehta',    daysPresent: 20, daysOnTime: 18, extraHours: 5  },
-  { name: 'Priya Sharma',   daysPresent: 17, daysOnTime: 15, extraHours: 2  },
-  { name: 'Rohit Kulkarni', daysPresent: 22, daysOnTime: 20, extraHours: 8  },
-  { name: 'Sneha Patil',    daysPresent: 14, daysOnTime: 12, extraHours: 1  },
-  { name: 'Vikram Desai',   daysPresent: 19, daysOnTime: 17, extraHours: 4  },
-]
-
-const MOCK_COST_TREND = [
-  { month:'Jan', grossPayroll:43800, netPayroll:37600 },
-  { month:'Feb', grossPayroll:50000, netPayroll:43800 },
-  { month:'Mar', grossPayroll:48000, netPayroll:41500 },
-  { month:'Apr', grossPayroll:52000, netPayroll:45000 },
-  { month:'May', grossPayroll:55000, netPayroll:48000 },
-  { month:'Jun', grossPayroll:49000, netPayroll:42500 },
-  { month:'Jul', grossPayroll:51000, netPayroll:44200 },
-  { month:'Aug', grossPayroll:47000, netPayroll:40500 },
-  { month:'Sep', grossPayroll:53000, netPayroll:46000 },
-  { month:'Oct', grossPayroll:50000, netPayroll:43800 },
-  { month:'Nov', grossPayroll:48500, netPayroll:42000 },
-  { month:'Dec', grossPayroll:56000, netPayroll:49000 },
-]
-
-const MOCK_EMPLOYEES = [
-  { loginId:'OIARME20230001', name:'Arjun Mehta',    email:'arjun@empay.in',  designation:'Sr Developer',    department:'Engineering',     workStatus:'CHECKED_IN' },
-  { loginId:'OIPRSH20220042', name:'Priya Sharma',   email:'priya@empay.in',  designation:'Lead HR Officer', department:'Human Resources', workStatus:'ON_LEAVE'   },
-  { loginId:'OIROKU20210018', name:'Rohit Kulkarni', email:'rohit@empay.in',  designation:'Mid Payroll Exec',department:'Payroll',         workStatus:'CHECKED_IN' },
-  { loginId:'OISNPA20230055', name:'Sneha Patil',    email:'sneha@empay.in',  designation:'Sr Designer',     department:'Product',         workStatus:'ABSENT'     },
-  { loginId:'OIVIDE20220031', name:'Vikram Desai',   email:'vikram@empay.in', designation:'Mid Developer',   department:'Engineering',     workStatus:'CHECKED_IN' },
-]
-
 const SWATCHES = ['#8b5cf6','#4f46e5','#00b4d8','#10b981','#f43f5e','#f59e0b']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,10 +85,11 @@ function StatusPill({ status }) {
 }
 
 // ─── Top Bar ──────────────────────────────────────────────────────────────────
-function TopBar({ userName }) {
+function TopBar({ userName, totalEmployees }) {
   const navigate = useNavigate()
   const T = useT()
   const AVTS = ['#4f46e5','#00b4d8','#22c55e']
+  const extra = Math.max(0, (totalEmployees || 0) - AVTS.length)
   return (
     <div style={{
       display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -157,7 +117,7 @@ function TopBar({ userName }) {
             <Icon size={15} color={T.muted}/>
           </button>
         ))}
-        {/* Avatar stack */}
+        {/* Avatar stack — dynamic count */}
         <div style={{ display:'flex', alignItems:'center' }}>
           {AVTS.map((c,i) => (
             <div key={i} style={{
@@ -165,15 +125,17 @@ function TopBar({ userName }) {
               border:'2px solid #fff', marginLeft: i===0 ? 0 : -8, zIndex:AVTS.length-i,
             }}/>
           ))}
-          <div style={{
-            marginLeft:-8, background:'#f3f4f6', borderRadius:999,
-            padding:'2px 8px', fontSize:11, fontWeight:700, color:T.muted,
-            border:'2px solid #fff', zIndex:0,
-          }}>+10</div>
+          {extra > 0 && (
+            <div style={{
+              marginLeft:-8, background:'#f3f4f6', borderRadius:999,
+              padding:'2px 8px', fontSize:11, fontWeight:700, color:T.muted,
+              border:'2px solid #fff', zIndex:0,
+            }}>+{extra}</div>
+          )}
         </div>
         {/* Invite */}
         <button
-          onClick={() => navigate('/settings')}
+          onClick={() => navigate('/employees/new')}
           style={{
             display:'flex', alignItems:'center', gap:6, padding:'7px 14px',
             border:`1.5px solid ${T.indigo}`, borderRadius:8, background:'transparent',
@@ -424,7 +386,16 @@ function WorkStatusCard({ data, loading }) {
 function EmployeePerformanceCard({ data, loading }) {
   const T = useT()
   const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
-  const rows = data?.length > 0 ? data : MOCK_ATTENDANCE_TREND
+  const rows = data || []
+
+  if (!loading && rows.length === 0) {
+    return (
+      <div style={{ ...card, flex:'0 0 54%', minWidth:0, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', minHeight:220, color:T.muted, fontSize:13 }}>
+        <span style={{ fontSize:28, marginBottom:8 }}>📅</span>
+        <span>No attendance data for this month yet</span>
+      </div>
+    )
+  }
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
@@ -491,7 +462,16 @@ function PayrollStatsCard({ data, loading }) {
   const card = { background:T.card, borderRadius:T.radius, boxShadow:T.shadow, padding:'20px 22px' }
   const [barColor, setBarColor] = useState('#8b5cf6')
   const [activeColor, setActiveColor] = useState(0)
-  const rows = data?.length > 0 ? data : MOCK_COST_TREND
+  const rows = data || []
+
+  if (!loading && rows.length === 0) {
+    return (
+      <div style={{ ...card, flex:'0 0 44%', minWidth:0, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', minHeight:220, color:T.muted, fontSize:13 }}>
+        <span style={{ fontSize:28, marginBottom:8 }}>💰</span>
+        <span>No payroll data for this year yet</span>
+      </div>
+    )
+  }
 
   const fmt = (v) => v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : `₹${v}`
 
@@ -574,7 +554,7 @@ function EmployeesTable({ employees, loading }) {
   const [status, setStatus]   = useState('all')
   const [role,   setRole]     = useState('all')
 
-  const rows = (employees?.length > 0 ? employees : MOCK_EMPLOYEES).filter(e => {
+  const rows = (employees || []).filter(e => {
     const q = search.toLowerCase()
     const nameMatch = e.name?.toLowerCase().includes(q) || e.loginId?.toLowerCase().includes(q)
     const statusMatch = status === 'all' || e.workStatus === status
@@ -582,7 +562,7 @@ function EmployeesTable({ employees, loading }) {
     return nameMatch && statusMatch && roleMatch
   })
 
-  const depts = [...new Set((employees?.length > 0 ? employees : MOCK_EMPLOYEES).map(e => e.department).filter(Boolean))]
+  const depts = [...new Set((employees || []).map(e => e.department).filter(Boolean))]
 
   const TH = ({ children }) => (
     <th style={{
@@ -713,6 +693,8 @@ export default function Dashboard() {
   const [attendanceTrend, setAttendanceTrend] = useState([])
   const [employees,       setEmployees]       = useState([])
   const [loading,         setLoading]         = useState(true)
+  const [apiError,        setApiError]        = useState(false)
+  const [lastUpdated,     setLastUpdated]     = useState(null)
   const [dateRange,       setDateRange]       = useState(() => {
     const n = new Date()
     const s = new Date(n.getFullYear(), n.getMonth(), 1)
@@ -721,7 +703,9 @@ export default function Dashboard() {
     return `${fmt(s)} – ${fmt(e)}`
   })
 
-  useEffect(() => {
+  const fetchAll = () => {
+    setLoading(true)
+    setApiError(false)
     const year  = new Date().getFullYear()
     const month = new Date().getMonth() + 1
 
@@ -729,34 +713,42 @@ export default function Dashboard() {
       api.get('/dashboard/overview'),
       api.get(`/dashboard/attendance-trend?month=${month}&year=${year}`),
       api.get(`/dashboard/employer-cost-trend?year=${year}`),
-      api.get('/employees?limit=10'),
+      api.get('/employees'),
     ])
     .then(([ov, at, ct, em]) => {
-      setOverview(ov.data?.data        || ov.data)
+      // Overview — shape: { data: { totalEmployees, ... } }
+      setOverview(ov.data?.data || ov.data || null)
+
+      // Attendance trend — shape: { data: [...] }
       setAttendanceTrend(at.data?.data || at.data || [])
-      setCostTrend(ct.data?.data       || ct.data || [])
-      // Normalise employees array
-      const empArr = em.data?.data || em.data || []
+
+      // Cost trend — shape: { data: [...] }
+      setCostTrend(ct.data?.data || ct.data || [])
+
+      // Employees — shape: { employees: [...] }
+      const empArr = em.data?.employees || em.data?.data || em.data || []
       setEmployees(empArr.map(e => ({
         id:          e.id,
-        loginId:     e.user?.loginId   || e.loginId,
-        name:        `${e.firstName} ${e.lastName}`,
-        email:       e.user?.email     || e.email,
-        designation: e.designation,
-        department:  e.department,
+        loginId:     e.user?.loginId   || e.loginId  || '—',
+        name:        `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
+        email:       e.user?.email     || e.email    || '—',
+        designation: e.designation     || '—',
+        department:  e.department      || '—',
         workStatus:  e.workStatus      || 'ABSENT',
       })))
+
+      setLastUpdated(new Date())
     })
-    .catch(() => {
-      setOverview(MOCK_OVERVIEW)
-      setCostTrend(MOCK_COST_TREND)
-      setAttendanceTrend(MOCK_ATTENDANCE_TREND)
-      setEmployees(MOCK_EMPLOYEES)
+    .catch((err) => {
+      console.error('[Dashboard] API fetch failed:', err?.response?.status, err?.message)
+      setApiError(true)
     })
     .finally(() => setLoading(false))
-  }, [])
+  }
 
-  const SIDEBAR_W = 64   // collapsed sidebar width
+  useEffect(() => { fetchAll() }, [])
+
+  const SIDEBAR_W = 64
 
   return (
     <>
@@ -771,7 +763,31 @@ export default function Dashboard() {
           minWidth: 0,
           overflowX: 'hidden',
         }}>
-          <TopBar userName={userName}/>
+          <TopBar userName={userName} totalEmployees={overview?.totalEmployees}/>
+
+          {/* API error banner */}
+          {apiError && (
+            <div style={{
+              marginBottom:16, padding:'10px 16px', borderRadius:10,
+              background:'#fff7ed', border:'1px solid #fed7aa',
+              display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:13,
+            }}>
+              <span style={{ color:'#c2410c' }}>
+                ⚠️ Could not reach the server — showing cached demo data.
+              </span>
+              <button
+                onClick={fetchAll}
+                style={{
+                  padding:'5px 12px', borderRadius:6, border:'1px solid #fb923c',
+                  background:'transparent', color:'#c2410c', fontWeight:600,
+                  cursor:'pointer', fontSize:12, fontFamily:'inherit',
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           <GreetingBar userName={userName} dateRange={dateRange} setDateRange={setDateRange}/>
 
           {/* Row 1 — Stat Cards */}
@@ -789,6 +805,13 @@ export default function Dashboard() {
 
           {/* Row 3 — Employees Table */}
           <EmployeesTable employees={employees} loading={loading}/>
+
+          {/* Last updated */}
+          {lastUpdated && !loading && (
+            <p style={{ textAlign:'right', fontSize:11, color:T.muted, marginTop:12 }}>
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
         </main>
       </div>
     </>
