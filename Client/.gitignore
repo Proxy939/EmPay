@@ -2,3 +2,8 @@ node_modules/
 dist/
 .env
 .env.local
+
+# Landing page (Next.js sub-app inside Client/)
+landing/node_modules/
+landing/.next/
+landing/out/
