@@ -1,45 +1,35 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
-import { useTheme } from '@/lib/theme'
+import api from '@/lib/api'
+import { PalmtreeIcon, Stethoscope, FileText, Eye, Check, X, Plus, Search, Pencil, Trash2 } from 'lucide-react'
+
+/* ── Fixed light-mode design tokens (shadcn-aligned) ── */
+const T = {
+  bg:     '#f8fafc', card:   '#ffffff', text:   '#0f172a',
+  muted:  '#64748b', border: '#e2e8f0', hover:  '#f8fafc',
+  shadow: '0 1px 3px rgba(15,23,42,0.08)',
+}
+const card_s = () => ({background:T.card,borderRadius:12,boxShadow:T.shadow,border:`1px solid ${T.border}`})
 
 /* ── accent colors ── */
-const A='#4f46e5', TC='#00b4d8', PU='#8b5cf6', AM='#f59e0b'
+const A='#4f46e5', TC='#0ea5e9', PU='#8b5cf6', AM='#f59e0b'
 const GR='#22c55e', RD='#ef4444'
-
-/* ── theme-aware tokens ── */
-function useT() {
-  const { colors } = useTheme()
-  return { bg:colors.bg, card:colors.card, text:colors.text, muted:colors.muted, border:colors.border, shadow:colors.shadow, hover:colors.hover }
-}
-const card_s = (t) => ({background:t.card,borderRadius:14,boxShadow:t.shadow})
 
 /* ── type meta ── */
 const TYPE={
-  'Paid Time Off': {color:TC,bg:'#e0f7fa',icon:'🌴'},
-  'Sick Leave':    {color:PU,bg:'#f3e8ff',icon:'🏥'},
-  'Unpaid Leave':  {color:AM,bg:'#fef3c7',icon:'📋'},
+  'Paid Time Off': {color:'#0284c7', bg:'#e0f2fe', Icon:PalmtreeIcon},
+  'Sick Leave':    {color:'#7c3aed', bg:'#f3e8ff', Icon:Stethoscope},
+  'Unpaid Leave':  {color:'#b45309', bg:'#fef3c7', Icon:FileText},
 }
 
 /* ── status meta ── */
 const STAT={
   Approved:{bg:'#dcfce7',color:'#16a34a'},
-  Pending: {bg:'#fef3c7',color:'#d97706'},
+  Pending: {bg:'#fef9c3',color:'#a16207'},
   Rejected:{bg:'#fee2e2',color:'#dc2626'},
 }
 
-/* ── mock data ── */
-const MOCK_LEAVES=[
-  {id:1,emp:'Arjun Mehta',  empId:'OIARM E20230001',type:'Paid Time Off',start:'28 Oct 2025',end:'28 Oct 2025',days:1,note:'Personal work',  status:'Approved'},
-  {id:2,emp:'Priya Sharma', empId:'OIPRSH20220042', type:'Sick Leave',   start:'15 Nov 2025',end:'17 Nov 2025',days:3,note:'Fever and rest', status:'Pending'},
-  {id:3,emp:'Rohit Kulkarni',empId:'OIROKU20210018',type:'Unpaid Leave', start:'05 Dec 2025',end:'06 Dec 2025',days:2,note:'Family function',status:'Rejected'},
-  {id:4,emp:'Sneha Patil',  empId:'OISNPA20230055', type:'Paid Time Off',start:'10 Dec 2025',end:'12 Dec 2025',days:3,note:'Vacation',       status:'Rejected'},
-  {id:5,emp:'Vikram Desai', empId:'OIVIDE20220031', type:'Sick Leave',   start:'20 Dec 2025',end:'20 Dec 2025',days:1,note:'Doctor visit',   status:'Approved'},
-]
-const MOCK_ALLOC=[
-  {id:1,emp:'Arjun Mehta',  type:'Paid Time Off',period:'Oct 13 – No Limit',allocated:24,remaining:23},
-  {id:2,emp:'Priya Sharma', type:'Sick Leave',   period:'Oct 13 – No Limit',allocated:7, remaining:4},
-  {id:3,emp:'Rohit Kulkarni',type:'Paid Time Off',period:'Oct 13 – No Limit',allocated:24,remaining:24},
-]
+/* ── MOCK DATA REMOVED ── */
 
 /* ── helpers ── */
 const fmtDate=d=>d
@@ -51,44 +41,48 @@ const workingDays=(a,b)=>{
 }
 
 /* ── tiny shared ── */
-const Badge=({s})=>{ const m=STAT[s]||{bg:'#f3f4f6',color:'#374151'}; return <span style={{...m,padding:'3px 10px',borderRadius:999,fontSize:11,fontWeight:700}}>{s}</span>}
-const TypePill=({t})=>{ const m=TYPE[t]||{}; return <span style={{background:m.bg,color:m.color,padding:'3px 10px',borderRadius:999,fontSize:11,fontWeight:700}}>{m.icon} {t}</span>}
-const Btn=(p)=><button {...p} style={{padding:'6px 16px',borderRadius:8,border:'none',cursor:'pointer',fontWeight:700,fontSize:12,...p.style}}>{p.children}</button>
+const Badge=({s})=>{ const m=STAT[s]||{bg:'#f1f5f9',color:'#475569'}; return <span style={{...m,padding:'3px 10px',borderRadius:6,fontSize:11,fontWeight:600,letterSpacing:'0.02em'}}>{s}</span>}
+const TypePill=({t})=>{ const m=TYPE[t]||{}; const Ic=m.Icon; return <span style={{display:'inline-flex',alignItems:'center',gap:5,background:m.bg,color:m.color,padding:'3px 10px',borderRadius:6,fontSize:11,fontWeight:600}}>{Ic&&<Ic size={11} strokeWidth={2.2}/>}{t}</span>}
+const Btn=(p)=><button {...p} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'0 16px',height:34,borderRadius:8,border:'none',cursor:'pointer',fontWeight:600,fontSize:13,...p.style}}>{p.children}</button>
 
 /* ── Balance Cards ── */
-function BalanceCards(){
-  const t = useT()
-  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
+function BalanceCards({ leaves = [] }){
+  const usedPaid = leaves.filter(r => r.type === 'Paid Time Off' && r.status !== 'Rejected').reduce((a, r) => a + r.days, 0)
+  const usedSick = leaves.filter(r => r.type === 'Sick Leave' && r.status !== 'Rejected').reduce((a, r) => a + r.days, 0)
+
   const cards=[
-    {type:'Paid Time Off', val:'24',  sub:'Days Available',color:TC},
-    {type:'Sick Leave',    val:'07',  sub:'Days Available',color:PU},
-    {type:'Unpaid Leave',  val:'∞',   sub:'No Limit',      color:AM},
+    {type:'Paid Time Off', val: Math.max(0, 24 - usedPaid).toString().padStart(2,'0'), sub:'Days Available', color:'#0284c7', bg:'#e0f2fe'},
+    {type:'Sick Leave',    val: Math.max(0, 7 - usedSick).toString().padStart(2,'0'), sub:'Days Available', color:'#7c3aed', bg:'#f3e8ff'},
+    {type:'Unpaid Leave',  val:'∞',  sub:'No Limit',       color:'#b45309', bg:'#fef3c7'},
   ]
   return(
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:22}}>
-      {cards.map(c=>(
-        <div key={c.type} style={{...card,padding:'18px 20px',borderLeft:`4px solid ${c.color}`,display:'flex',alignItems:'center',gap:16}}>
-          <div style={{fontSize:28}}>{TYPE[c.type].icon}</div>
-          <div>
-            <p style={{margin:0,fontSize:12,color:'#6b7280',fontWeight:600}}>{c.type}</p>
-            <p style={{margin:'4px 0 2px',fontSize:28,fontWeight:800,color:c.color,lineHeight:1}}>{c.val}</p>
-            <p style={{margin:0,fontSize:11,color:'#9ca3af'}}>{c.sub}</p>
+      {cards.map(c=>{
+        const Ic=TYPE[c.type]?.Icon
+        return(
+          <div key={c.type} style={{...card_s(),padding:'20px',borderLeft:`4px solid ${c.color}`,display:'flex',alignItems:'center',gap:16}}>
+            <div style={{width:44,height:44,borderRadius:11,background:c.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              {Ic&&<Ic size={20} color={c.color} strokeWidth={2}/>}
+            </div>
+            <div>
+              <p style={{margin:0,fontSize:12,color:T.muted,fontWeight:500}}>{c.type}</p>
+              <p style={{margin:'3px 0 2px',fontSize:30,fontWeight:800,color:c.color,lineHeight:1}}>{c.val}</p>
+              <p style={{margin:0,fontSize:11,color:T.muted}}>{c.sub}</p>
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
 
 /* ── Leave table (shared) ── */
 function LeaveTable({rows,isAdmin,canApprove,onView,onApprove,onReject,rejectId,setRejectId,rejectReason,setRejectReason,onConfirmReject}){
-  const t = useT()
-  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
-  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:t.muted,
-    borderBottom:`1px solid ${t.border}`,textTransform:'uppercase',letterSpacing:'0.05em'}
-  const TD={padding:'11px 14px',fontSize:13,borderBottom:`1px solid ${t.border}`}
+  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:T.muted,
+    borderBottom:`1px solid ${T.border}`,textTransform:'uppercase',letterSpacing:'0.05em',background:T.bg}
+  const TD={padding:'11px 14px',fontSize:13,borderBottom:`1px solid ${T.border}`,color:T.text}
   return(
-    <div style={{...card,padding:0,overflow:'hidden'}}>
+    <div style={{...card_s(),padding:0,overflow:'hidden'}}>
       <table style={{width:'100%',borderCollapse:'collapse'}}>
         <thead><tr style={{background:'#f9fafb'}}>
           {['#',...(isAdmin?['Employee']:[]),'Leave Type','Start','End','Days','Note','Status','Actions'].map(h=>(
@@ -100,19 +94,23 @@ function LeaveTable({rows,isAdmin,canApprove,onView,onApprove,onReject,rejectId,
             <tr><td colSpan={9} style={{textAlign:'center',padding:32,color:'#9ca3af',fontSize:13}}>No records found</td></tr>
           )}
           {rows.map((r,i)=>(
-            <>
+            <React.Fragment key={r.id}>
               <tr key={r.id} style={{borderBottom:'1px solid #f3f4f6'}}
                 onMouseEnter={e=>e.currentTarget.style.background='#f8faff'}
                 onMouseLeave={e=>e.currentTarget.style.background=''}>
                 <td style={{...TD,color:'#9ca3af'}}>{i+1}</td>
                 {isAdmin&&(
                   <td style={TD}>
-                    <div style={{width:28,height:28,borderRadius:'50%',background:A,color:'#fff',display:'inline-flex',
-                      alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:11,marginRight:8,verticalAlign:'middle'}}>
-                      {r.emp[0]}
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <div style={{width:32,height:32,borderRadius:'50%',background:'#eef2ff',color:A,display:'flex',
+                        alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0}}>
+                        {r.emp[0]}
+                      </div>
+                      <div>
+                        <div style={{fontWeight:600,color:T.text,lineHeight:1.1}}>{r.emp}</div>
+                        <div style={{fontSize:11,color:T.muted,marginTop:4}}>{r.empId}</div>
+                      </div>
                     </div>
-                    <span style={{fontWeight:600}}>{r.emp}</span>
-                    <div style={{fontSize:10,color:'#9ca3af',marginTop:2}}>{r.empId}</div>
                   </td>
                 )}
                 <td style={TD}><TypePill t={r.type}/></td>
@@ -122,14 +120,14 @@ function LeaveTable({rows,isAdmin,canApprove,onView,onApprove,onReject,rejectId,
                 <td style={{...TD,color:'#6b7280',maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.note}</td>
                 <td style={TD}><Badge s={r.status}/></td>
                 <td style={{...TD,whiteSpace:'nowrap'}}>
-                  <button onClick={()=>onView(r)} style={{background:'none',border:`1px solid #e5e7eb`,borderRadius:7,
-                    padding:'4px 10px',fontSize:12,cursor:'pointer',marginRight:4}}>👁 View</button>
+                  <button onClick={()=>onView(r)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'#f8fafc',border:`1px solid ${T.border}`,borderRadius:7,
+                    padding:'4px 10px',fontSize:12,cursor:'pointer',marginRight:4,color:T.muted}}><Eye size={12}/> View</button>
                   {canApprove&&r.status==='Pending'&&(
                     <>
-                      <button onClick={()=>onApprove(r.id)} style={{background:'#f0fdf4',color:'#16a34a',border:'1px solid #bbf7d0',
-                        borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer',marginRight:4}}>✅ Approve</button>
-                      <button onClick={()=>setRejectId(r.id)} style={{background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',
-                        borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>❌ Reject</button>
+                      <button onClick={()=>onApprove(r.id)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'#f0fdf4',color:'#16a34a',border:'1px solid #bbf7d0',
+                        borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer',marginRight:4}}><Check size={12}/> Approve</button>
+                      <button onClick={()=>setRejectId(r.id)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',
+                        borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer'}}><X size={12}/> Reject</button>
                     </>
                   )}
                 </td>
@@ -150,7 +148,7 @@ function LeaveTable({rows,isAdmin,canApprove,onView,onApprove,onReject,rejectId,
                   </td>
                 </tr>
               )}
-            </>
+            </React.Fragment>
           ))}
         </tbody>
       </table>
@@ -170,13 +168,13 @@ function EmployeeView({onNew,onView,leaves,setLeaves}){
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
         <div>
-          <h1 style={{margin:0,fontSize:22,fontWeight:800,color:'#111827'}}>Time Off</h1>
-          <p style={{margin:'4px 0 0',fontSize:13,color:'#9ca3af'}}>Manage your leave requests and balances</p>
+          <h1 style={{margin:0,fontSize:20,fontWeight:700,color:T.text,letterSpacing:'-0.3px'}}>Time Off</h1>
+          <p style={{margin:'4px 0 0',fontSize:13,color:T.muted}}>Manage your leave requests and balances</p>
         </div>
         <Btn onClick={onNew} style={{background:A,color:'#fff'}}>+ New Request</Btn>
       </div>
       <div style={{height:20}}/>
-      <BalanceCards/>
+      <BalanceCards leaves={myLeaves}/>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <span style={{fontWeight:700,fontSize:15}}>My Leave Requests</span>
@@ -184,8 +182,8 @@ function EmployeeView({onNew,onView,leaves,setLeaves}){
         </div>
         <div style={{display:'flex',gap:6}}>
           {filters.map(f=>(
-            <button key={f} onClick={()=>setFilter(f)} style={{padding:'5px 14px',borderRadius:999,border:'none',
-              cursor:'pointer',fontWeight:600,fontSize:11,background:filter===f?A:'#f3f4f6',color:filter===f?'#fff':'#374151'}}>{f}</button>
+            <button key={f} onClick={()=>setFilter(f)} style={{padding:'5px 14px',borderRadius:7,border:'none',
+              cursor:'pointer',fontWeight:600,fontSize:11,background:filter===f?A:'#f1f5f9',color:filter===f?'#fff':'#475569',transition:'all .15s'}}>{f}</button>
           ))}
         </div>
       </div>
@@ -198,14 +196,15 @@ function EmployeeView({onNew,onView,leaves,setLeaves}){
 
 /* ── ADMIN VIEW ─────────────────────────────────── */
 function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
-  const t = useT()
-  const card = {background:t.card,borderRadius:14,boxShadow:t.shadow}
   const [tab,setTab]=useState('timeoff')
   const [filter,setFilter]=useState('All')
   const [search,setSearch]=useState('')
   const [rejectId,setRejectId]=useState(null)
   const [rejectReason,setRejectReason]=useState('')
   const filters=['All','Pending','Approved','Rejected']
+  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:T.muted,
+    borderBottom:`1px solid ${T.border}`,textTransform:'uppercase',letterSpacing:'0.05em',background:T.bg}
+  const TD={padding:'11px 14px',fontSize:13,borderBottom:`1px solid ${T.border}`,color:T.text}
 
   const shown=useMemo(()=>{
     let r=leaves
@@ -214,34 +213,39 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
     return r
   },[leaves,filter,search])
 
-  const approve=id=>setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r))
-  const confirmReject=id=>{
-    setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Rejected'}:r))
-    setRejectId(null); setRejectReason('')
+  const approve = async (id) => {
+    try {
+      await api.patch(`/leaves/${id}/review`, { status: 'APPROVED' })
+      setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r))
+    } catch (err) { alert(err.response?.data?.message || 'Error') }
   }
-  const TH={padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:t.muted,
-    borderBottom:`1px solid ${t.border}`,textTransform:'uppercase',letterSpacing:'0.05em'}
-  const TD={padding:'11px 14px',fontSize:13,borderBottom:`1px solid ${t.border}`}
+  const confirmReject = async (id) => {
+    try {
+      await api.patch(`/leaves/${id}/review`, { status: 'REJECTED', reviewNote: rejectReason })
+      setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Rejected'}:r))
+      setRejectId(null); setRejectReason('')
+    } catch (err) { alert(err.response?.data?.message || 'Error') }
+  }
 
   return(
     <div>
       {/* header */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:18}}>
         <div>
-          <h1 style={{margin:0,fontSize:22,fontWeight:800,color:'#111827'}}>Time Off</h1>
-          <p style={{margin:'4px 0 0',fontSize:13,color:'#9ca3af'}}>Review and manage all employee leave requests</p>
+          <h1 style={{margin:0,fontSize:20,fontWeight:700,color:T.text,letterSpacing:'-0.3px'}}>Time Off</h1>
+          <p style={{margin:'4px 0 0',fontSize:13,color:T.muted}}>Review and manage all employee leave requests</p>
         </div>
         <div style={{display:'flex',gap:8}}>
-          {canApprove&&<Btn onClick={onNewAlloc} style={{background:'#fff',color:PU,border:`1.5px solid ${PU}`}}>+ New Allocation</Btn>}
-          <Btn onClick={onNew} style={{background:A,color:'#fff'}}>+ New Request</Btn>
+          {canApprove&&<Btn onClick={onNewAlloc} style={{background:T.card,color:PU,border:`1.5px solid ${PU}`}}><Plus size={13}/>Allocation</Btn>}
+          <Btn onClick={onNew} style={{background:'#4f46e5',color:'#fff'}}><Plus size={13}/>New Request</Btn>
         </div>
       </div>
 
       {/* tabs */}
       <div style={{display:'flex',gap:4,marginBottom:20}}>
         {[['timeoff','Time Off'],['allocation','Allocation']].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{padding:'8px 22px',borderRadius:999,border:'none',cursor:'pointer',
-            fontWeight:700,fontSize:13,background:tab===k?A:'#f3f4f6',color:tab===k?'#fff':'#374151'}}>{l}</button>
+          <button key={k} onClick={()=>setTab(k)} style={{padding:'8px 20px',borderRadius:8,border:'none',cursor:'pointer',
+            fontWeight:600,fontSize:13,background:tab===k?A:'#f1f5f9',color:tab===k?'#fff':'#475569',transition:'all .15s'}}>{l}</button>
         ))}
       </div>
 
@@ -249,26 +253,37 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
         <>
           {/* search + filters */}
           <div style={{display:'flex',gap:10,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search employee…"
-              style={{padding:'8px 14px',borderRadius:9,border:'1.5px solid #e5e7eb',fontSize:13,
-                outline:'none',width:200,background:'#f9fafb'}}/>
-            <select style={{padding:'8px 12px',borderRadius:9,border:'1.5px solid #e5e7eb',fontSize:13,outline:'none',background:'#f9fafb'}}>
+            <div style={{position:'relative'}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search employee…"
+                style={{padding:'0 14px 0 36px',borderRadius:9,border:`1.5px solid ${T.border}`,fontSize:13,height:36,
+                  outline:'none',width:200,background:T.bg,color:T.text,boxSizing:'border-box'}}/>
+              <Search size={14} style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:T.muted,pointerEvents:'none'}}/>
+            </div>
+            <select style={{padding:'0 14px',height:34,borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,outline:'none',background:T.bg,color:T.text}}>
               <option>Leave Type ▼</option>
               {Object.keys(TYPE).map(t=><option key={t}>{t}</option>)}
             </select>
             <div style={{display:'flex',gap:6}}>
               {filters.map(f=>(
-                <button key={f} onClick={()=>setFilter(f)} style={{padding:'5px 14px',borderRadius:999,border:'none',
-                  cursor:'pointer',fontWeight:600,fontSize:11,background:filter===f?A:'#f3f4f6',color:filter===f?'#fff':'#374151'}}>{f}</button>
+                <button key={f} onClick={()=>setFilter(f)} style={{padding:'5px 14px',borderRadius:7,border:'none',
+                  cursor:'pointer',fontWeight:600,fontSize:11,background:filter===f?A:'#f1f5f9',color:filter===f?'#fff':'#475569',transition:'all .15s'}}>{f}</button>
               ))}
             </div>
           </div>
           {/* balance strip */}
-          <div style={{...card,padding:'12px 20px',marginBottom:14,background:'#eef2ff',display:'flex',gap:28,flexWrap:'wrap',alignItems:'center'}}>
-            {[['🌴','Paid Time Off','24 Days',TC],['🏥','Sick Leave','07 Days',PU],['📋','Unpaid','No Limit',AM]].map(([ic,lbl,val,c])=>(
-              <span key={lbl} style={{fontSize:13,fontWeight:600,color:c}}>{ic} {lbl} <span style={{color:'#374151',fontWeight:400}}>| {val}</span></span>
-            ))}
-            <span style={{fontSize:11,color:'#9ca3af',marginLeft:'auto'}}>Select a row to view individual balances</span>
+          <div style={{...card_s(),padding:'12px 20px',marginBottom:14,background:'#f8fafc',display:'flex',gap:28,flexWrap:'wrap',alignItems:'center'}}>
+            {Object.entries(TYPE).map(([lbl, meta])=>{
+              const Ic = meta.Icon
+              return (
+                <div key={lbl} style={{display:'flex',alignItems:'center',gap:6}}>
+                  <div style={{width:24,height:24,borderRadius:6,background:meta.bg,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <Ic size={13} color={meta.color} strokeWidth={2.5}/>
+                  </div>
+                  <span style={{fontSize:13,fontWeight:600,color:T.text}}>{lbl} <span style={{color:T.muted,fontWeight:400}}>| {lbl === 'Unpaid Leave' ? 'No Limit' : lbl === 'Sick Leave' ? '07 Days' : '24 Days'}</span></span>
+                </div>
+              )
+            })}
+            <span style={{fontSize:11,color:T.muted,marginLeft:'auto'}}>Select a row to view individual balances</span>
           </div>
           <LeaveTable rows={shown} isAdmin={true} canApprove={canApprove} onView={onView}
             onApprove={approve} onReject={()=>{}} rejectId={rejectId} setRejectId={setRejectId}
@@ -282,7 +297,7 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
             <span style={{fontWeight:700,fontSize:15}}>Leave Balance Allocations</span>
             {canApprove&&<Btn onClick={onNewAlloc} style={{background:A,color:'#fff'}}>+ New Allocation</Btn>}
           </div>
-          <div style={{...card,padding:0,overflow:'hidden'}}>
+          <div style={{...card_s(),padding:0,overflow:'hidden'}}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{background:'#f9fafb'}}>
                 {['Employee','Leave Type','Validity Period','Allocated Days','Remaining','Actions'].map(h=>(
@@ -290,7 +305,10 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
                 ))}
               </tr></thead>
               <tbody>
-                {MOCK_ALLOC.map(r=>(
+                {[].length === 0 && (
+                  <tr><td colSpan={6} style={{textAlign:'center',padding:32,color:T.muted,fontSize:13}}>No allocations found</td></tr>
+                )}
+                {[].map(r=>(
                   <tr key={r.id} style={{borderBottom:'1px solid #f3f4f6'}}
                     onMouseEnter={e=>e.currentTarget.style.background='#f8faff'}
                     onMouseLeave={e=>e.currentTarget.style.background=''}>
@@ -301,8 +319,8 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
                     <td style={{...TD,fontWeight:700,color:A}}>{r.remaining} days</td>
                     <td style={TD}>
                       {canApprove&&<>
-                        <button style={{background:'#eef2ff',color:A,border:'none',borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer',marginRight:4}}>✏ Edit</button>
-                        <button style={{background:'#fee2e2',color:RD,border:'none',borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>🗑 Delete</button>
+                        <button style={{display:'inline-flex',alignItems:'center',gap:4,background:'#eff6ff',color:A,border:'none',borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer',marginRight:4}}><Pencil size={11}/> Edit</button>
+                        <button style={{display:'inline-flex',alignItems:'center',gap:4,background:'#fee2e2',color:RD,border:'none',borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer'}}><Trash2 size={11}/> Delete</button>
                       </>}
                     </td>
                   </tr>
@@ -317,79 +335,164 @@ function AdminView({onNew,onNewAlloc,onView,leaves,setLeaves,canApprove}){
 }
 
 /* ── REQUEST MODAL ──────────────────────────────── */
-function RequestModal({onClose,isAdmin}){
+function RequestModal({onClose, onSubmit, isAdmin}){
   const [ltype,setLtype]=useState('')
   const [from,setFrom]=useState('')
   const [to,setTo]=useState('')
   const [note,setNote]=useState('')
+  const [file,setFile]=useState(null)
+  const [loading,setLoading]=useState(false)
+  const [dragging,setDragging]=useState(false)
+  const fileRef = useState(() => ({ current: null }))[0]
   const dur=workingDays(from,to)
-  const IF={width:'100%',padding:'9px 12px',borderRadius:9,border:'1.5px solid #e5e7eb',
-    fontSize:13,outline:'none',color:'#374151',boxSizing:'border-box',background:'#fff',fontFamily:'inherit'}
+
+  const handleSubmit = async () => {
+    if (!ltype || !from || !to) {
+      alert("Please fill in the required fields.")
+      return
+    }
+    setLoading(true)
+    await onSubmit({ ltype, from, to, note, file })
+    setLoading(false)
+  }
+
+  const ACCEPTED = ['.pdf','.jpg','.jpeg','.png']
+  const fmtSize = b => b < 1024*1024 ? `${(b/1024).toFixed(1)} KB` : `${(b/(1024*1024)).toFixed(1)} MB`
+
+  const handleFile = (f) => {
+    if(!f) return
+    const ok = ACCEPTED.some(ext => f.name.toLowerCase().endsWith(ext))
+    if(!ok){ alert('Only PDF, JPG or PNG files are accepted.'); return }
+    setFile(f)
+  }
+
+  const onDrop = (e) => {
+    e.preventDefault(); setDragging(false)
+    const f = e.dataTransfer.files?.[0]
+    if(f) handleFile(f)
+  }
+
+  const IF={width:'100%',padding:'9px 12px',borderRadius:9,border:`1.5px solid ${T.border}`,
+    fontSize:13,outline:'none',color:T.text,boxSizing:'border-box',background:'#fff',fontFamily:'inherit',
+    colorScheme:'light'}
+
   return(
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-      <div style={{background:'#fff',borderRadius:16,width:'100%',maxWidth:520,maxHeight:'92vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.18)'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 22px',borderBottom:'1px solid #f3f4f6'}}>
-          <span style={{fontWeight:800,fontSize:16}}>New Time Off Request</span>
-          <button onClick={onClose} style={{background:'#f3f4f6',border:'none',borderRadius:8,padding:'5px 12px',fontWeight:700,cursor:'pointer'}}>✕</button>
+    <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20,backdropFilter:'blur(2px)'}}>
+      <div style={{background:'#fff',borderRadius:14,width:'100%',maxWidth:520,maxHeight:'92vh',overflowY:'auto',boxShadow:'0 8px 32px rgba(15,23,42,0.18)',border:`1px solid ${T.border}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 22px',borderBottom:`1px solid ${T.border}`}}>
+          <span style={{fontWeight:700,fontSize:16,color:T.text}}>New Time Off Request</span>
+          <button onClick={onClose} style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 12px',fontWeight:600,cursor:'pointer',color:T.muted}}>✕</button>
         </div>
         <div style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:14}}>
           {isAdmin&&(
             <div>
-              <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>Employee</label>
+              <label style={{display:'block',fontSize:12,fontWeight:600,color:T.muted,marginBottom:5}}>Employee</label>
               <select style={IF}><option value="">Select employee…</option>
                 {['Arjun Mehta','Priya Sharma','Rohit Kulkarni','Sneha Patil','Vikram Desai'].map(e=><option key={e}>{e}</option>)}
               </select>
             </div>
           )}
           <div>
-            <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>Time Off Type</label>
+            <label style={{display:'block',fontSize:12,fontWeight:600,color:T.muted,marginBottom:5}}>Time Off Type</label>
             <select value={ltype} onChange={e=>setLtype(e.target.value)} style={IF}>
               <option value="">Select type…</option>
-              {Object.entries(TYPE).map(([k,v])=><option key={k} value={k}>{v.icon} {k}</option>)}
+              {Object.entries(TYPE).map(([k])=><option key={k} value={k}>{k}</option>)}
             </select>
           </div>
-          {/* Unpaid banner */}
           {ltype==='Unpaid Leave'&&(
             <div style={{background:'#fffbeb',borderLeft:`4px solid ${AM}`,padding:'10px 14px',borderRadius:'0 8px 8px 0',fontSize:12,color:'#92400e'}}>
               ℹ️ Unpaid leave will be deducted from your salary
             </div>
           )}
-          {/* Sick warning */}
           {ltype==='Sick Leave'&&(
             <div style={{background:'#fef2f2',borderLeft:`4px solid ${RD}`,padding:'10px 14px',borderRadius:'0 8px 8px 0',fontSize:12,color:'#991b1b'}}>
               🏥 Medical certificate required for sick leave
             </div>
           )}
           <div>
-            <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>Validity Period</label>
+            <label style={{display:'block',fontSize:12,fontWeight:600,color:T.muted,marginBottom:5}}>Validity Period</label>
             <div style={{display:'flex',gap:10,alignItems:'center'}}>
-              <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={{...IF,flex:1}}/>
-              <span style={{color:'#9ca3af',fontSize:13}}>to</span>
-              <input type="date" value={to} onChange={e=>setTo(e.target.value)} style={{...IF,flex:1}}/>
+              <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={{...IF,flex:1,colorScheme:'light'}}/>
+              <span style={{color:T.muted,fontSize:13}}>to</span>
+              <input type="date" value={to} onChange={e=>setTo(e.target.value)} style={{...IF,flex:1,colorScheme:'light'}}/>
             </div>
-            {dur>0&&<span style={{display:'inline-block',marginTop:8,background:'#eef2ff',color:A,borderRadius:999,padding:'4px 12px',fontSize:11,fontWeight:700}}>Duration: {dur} working day{dur!==1?'s':''}</span>}
+            {dur>0&&<span style={{display:'inline-block',marginTop:8,background:'#eef2ff',color:A,borderRadius:6,padding:'4px 12px',fontSize:11,fontWeight:600}}>Duration: {dur} working day{dur!==1?'s':''}</span>}
           </div>
           <div>
-            <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>Note</label>
+            <label style={{display:'block',fontSize:12,fontWeight:600,color:T.muted,marginBottom:5}}>Note</label>
             <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="Add a reason for your leave request…"
               style={{...IF,resize:'vertical'}}/>
           </div>
+
+          {/* ── File upload (shown for Sick Leave) ── */}
           {ltype==='Sick Leave'&&(
             <div>
-              <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>
-                Attachment <span style={{color:RD}}>*</span> <span style={{color:'#9ca3af',fontWeight:400}}>(Required for Sick Leave)</span>
+              <label style={{display:'block',fontSize:12,fontWeight:600,color:T.muted,marginBottom:5}}>
+                Attachment <span style={{color:RD}}>*</span>{' '}
+                <span style={{color:T.muted,fontWeight:400}}>(Required — PDF, JPG, PNG)</span>
               </label>
-              <div style={{border:'2px dashed #c7d2fe',background:'#f5f3ff',borderRadius:10,padding:'20px',textAlign:'center',cursor:'pointer'}}>
-                <p style={{margin:0,fontSize:13,color:PU}}>📎 Upload sick leave certificate</p>
-                <p style={{margin:'4px 0 0',fontSize:11,color:'#9ca3af'}}>PDF, JPG, PNG accepted</p>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{display:'none'}}/>
-              </div>
+
+              {/* Hidden real input */}
+              <input
+                ref={el => fileRef.current = el}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                style={{display:'none'}}
+                onChange={e => handleFile(e.target.files?.[0])}
+              />
+
+              {!file ? (
+                /* Drop zone */
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={onDrop}
+                  style={{
+                    border: `2px dashed ${dragging ? PU : '#c4b5fd'}`,
+                    background: dragging ? '#faf5ff' : '#f5f3ff',
+                    borderRadius: 10, padding: '28px 20px',
+                    textAlign: 'center', cursor: 'pointer',
+                    transition: 'all .15s',
+                  }}
+                >
+                  <div style={{width:40,height:40,borderRadius:10,background:'#ede9fe',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px'}}>
+                    <FileText size={20} color={PU} strokeWidth={2}/>
+                  </div>
+                  <p style={{margin:0,fontSize:13,fontWeight:600,color:PU}}>Click to upload or drag & drop</p>
+                  <p style={{margin:'4px 0 0',fontSize:11,color:T.muted}}>PDF, JPG, PNG · Max 5 MB</p>
+                </div>
+              ) : (
+                /* File preview */
+                <div style={{
+                  display:'flex',alignItems:'center',gap:12,
+                  padding:'12px 14px',borderRadius:10,
+                  border:`1.5px solid #bbf7d0`,background:'#f0fdf4',
+                }}>
+                  <div style={{width:36,height:36,borderRadius:8,background:'#dcfce7',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <FileText size={17} color="#16a34a" strokeWidth={2}/>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{margin:0,fontSize:13,fontWeight:600,color:'#15803d',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{file.name}</p>
+                    <p style={{margin:0,fontSize:11,color:'#16a34a'}}>{fmtSize(file.size)}</p>
+                  </div>
+                  <button
+                    onClick={() => { setFile(null); if(fileRef.current) fileRef.current.value='' }}
+                    style={{background:'none',border:'none',cursor:'pointer',color:'#dc2626',padding:4,borderRadius:6,display:'flex',alignItems:'center'}}
+                    title="Remove file"
+                  >
+                    <X size={16}/>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-        <div style={{display:'flex',gap:10,justifyContent:'flex-end',padding:'14px 22px',borderTop:'1px solid #f3f4f6'}}>
-          <Btn onClick={onClose} style={{background:'#fff',color:'#374151',border:'1.5px solid #e5e7eb'}}>Discard</Btn>
-          <Btn style={{background:A,color:'#fff'}}>Submit Request</Btn>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',padding:'14px 22px',borderTop:`1px solid ${T.border}`}}>
+          <Btn onClick={onClose} style={{background:'#fff',color:T.muted,border:`1.5px solid ${T.border}`}} disabled={loading}>Discard</Btn>
+          <Btn onClick={handleSubmit} style={{background:A,color:'#fff',opacity:loading?0.7:1}} disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit Request'}
+          </Btn>
         </div>
       </div>
     </div>
@@ -419,7 +522,7 @@ function AllocationModal({onClose}){
             <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:5}}>Time Off Type</label>
             <select value={ltype} onChange={e=>setLtype(e.target.value)} style={IF}>
               <option value="">Select type…</option>
-              {Object.entries(TYPE).map(([k,v])=><option key={k} value={k}>{v.icon} {k}</option>)}
+              {Object.entries(TYPE).map(([k,v])=><option key={k} value={k}>{k}</option>)}
             </select>
           </div>
           <div>
@@ -457,7 +560,12 @@ function DetailModal({leave,onClose,canApprove,onApprove}){
     ['Period',`${leave.start} – ${leave.end}`],
     ['Duration',`${leave.days} Working Day${leave.days!==1?'s':''}`],
     ['Note',leave.note||'—'],
-    ['Attachment','—'],
+    ['Attachment', leave.attachmentUrl ? (
+      <a href={`http://localhost:5000${leave.attachmentUrl}`} target="_blank" rel="noreferrer" 
+         style={{display:'inline-flex',alignItems:'center',gap:4,color:A,textDecoration:'none',fontWeight:600}}>
+         <FileText size={13}/> View Certificate
+      </a>
+    ) : '—'],
     ['Status',<Badge s={leave.status}/>],
     ['Approved by','HR Officer'],
     ['Approved on','29 Oct 2025'],
@@ -502,25 +610,92 @@ const isAdminRole=r=>r!=='Employee'
 
 /* ── MAIN TIME OFF PAGE ─────────────────────────── */
 export default function TimeOff(){
-  const t = useT()
   const [role,setRole]=useState('Employee')
-  const [leaves,setLeaves]=useState(MOCK_LEAVES)
+  const [leaves,setLeaves]=useState([])
   const [reqOpen,setReqOpen]=useState(false)
   const [allocOpen,setAllocOpen]=useState(false)
   const [detailOpen,setDetailOpen]=useState(false)
   const [selLeave,setSelLeave]=useState(null)
 
+  React.useEffect(() => {
+    const fetchLeaves = async () => {
+      try {
+        const endpoint = role === 'Employee' ? '/leaves/me' : '/leaves'
+        const res = await api.get(endpoint)
+        const mapped = res.data.data.map(l => {
+          const typeMapRev = { 'PAID': 'Paid Time Off', 'SICK': 'Sick Leave', 'UNPAID': 'Unpaid Leave' }
+          const statusMapRev = { 'PENDING': 'Pending', 'APPROVED': 'Approved', 'REJECTED': 'Rejected' }
+          return {
+            id: l.id,
+            emp: l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : 'Arjun Mehta',
+            empId: l.employee?.user?.loginId || 'OIARM E20230001',
+            type: typeMapRev[l.leaveType] || 'Paid Time Off',
+            start: l.startDate.split('T')[0],
+            end: l.endDate.split('T')[0],
+            days: l.totalDays,
+            note: l.reason || '',
+            attachmentUrl: l.attachmentUrl,
+            status: statusMapRev[l.status] || 'Pending'
+          }
+        })
+        setLeaves(mapped)
+      } catch (err) {
+        console.error('Failed to fetch leaves:', err)
+      }
+    }
+    fetchLeaves()
+  }, [role])
+
   const openDetail=l=>{setSelLeave(l);setDetailOpen(true)}
-  const approve=id=>setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r))
+  const approve = async (id) => {
+    try {
+      await api.patch(`/leaves/${id}/review`, { status: 'APPROVED' })
+      setLeaves(p=>p.map(r=>r.id===id?{...r,status:'Approved'}:r))
+    } catch (err) { alert(err.response?.data?.message || 'Error') }
+  }
+
+  const handleApplyLeave = async (data) => {
+    try {
+      const typeMap = { 'Paid Time Off': 'PAID', 'Sick Leave': 'SICK', 'Unpaid Leave': 'UNPAID' }
+      const formData = new FormData()
+      formData.append('leaveType', typeMap[data.ltype])
+      formData.append('startDate', data.from)
+      formData.append('endDate', data.to)
+      if (data.note) formData.append('reason', data.note)
+      if (data.file) formData.append('certificate', data.file)
+
+      const res = await api.post('/leaves/apply', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      // Update local state to reflect the new submission
+      const newLeave = {
+        id: res.data.data.id,
+        emp: 'Arjun Mehta', // Currently hardcoded to the logged in user for demo
+        empId: 'OIARM E20230001',
+        type: data.ltype,
+        start: data.from, // e.g. '2025-10-28'
+        end: data.to,
+        days: res.data.data.totalDays,
+        note: data.note,
+        attachmentUrl: res.data.data.attachmentUrl,
+        status: 'Pending'
+      }
+      setLeaves(prev => [newLeave, ...prev])
+      setReqOpen(false)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit leave request')
+    }
+  }
 
   return(
-    <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'inherit'}}>
+    <div style={{display:'flex',minHeight:'100vh',background:T.bg,fontFamily:'inherit',colorScheme:'light'}}>
       <Sidebar/>
       <div style={{flex:1,marginLeft:64,padding:'28px 28px 48px',minWidth:0}}>
         {/* Role switcher */}
         <div style={{display:'flex',justifyContent:'flex-end',marginBottom:18}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,background:'#fff',borderRadius:10,padding:'6px 14px',boxShadow:'0 1px 6px rgba(0,0,0,0.06)'}}>
-            <span style={{fontSize:12,color:'#6b7280',fontWeight:600}}>Viewing as:</span>
+          <div style={{display:'flex',alignItems:'center',gap:8,background:T.card,borderRadius:10,padding:'6px 14px',border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <span style={{fontSize:12,color:T.muted,fontWeight:500}}>Viewing as:</span>
             <select value={role} onChange={e=>setRole(e.target.value)} style={{border:'none',outline:'none',fontWeight:700,fontSize:13,color:A,background:'transparent',cursor:'pointer',fontFamily:'inherit'}}>
               {ROLES.map(r=><option key={r} value={r}>{r}</option>)}
             </select>
@@ -542,7 +717,7 @@ export default function TimeOff(){
       </div>
 
       {/* Modals */}
-      {reqOpen&&<RequestModal onClose={()=>setReqOpen(false)} isAdmin={isAdminRole(role)}/>}
+      {reqOpen&&<RequestModal onClose={()=>setReqOpen(false)} onSubmit={handleApplyLeave} isAdmin={isAdminRole(role)}/>}
       {allocOpen&&<AllocationModal onClose={()=>setAllocOpen(false)}/>}
       {detailOpen&&<DetailModal leave={selLeave} onClose={()=>setDetailOpen(false)} canApprove={canApproveRole(role)} onApprove={approve}/>}
     </div>
