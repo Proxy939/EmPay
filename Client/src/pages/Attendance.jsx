@@ -83,76 +83,9 @@ function Avatar({ name, size = 32 }) {
   )
 }
 
-// ── Top Navigation Bar ───────────────────────────────────────────────────────
-function TopNav({ activeTab, setActiveTab }) {
-  const tabs = [
-    { id: 'attendance', label: 'Attendance' },
-    { id: 'overtime',   label: 'Overtime',   badge: 32 },
-    { id: 'leave',      label: 'Leave',      badge: 55 },
-    { id: 'worktime',   label: 'Work Time' },
-  ]
-  return (
-    <div style={{
-      background: C.nav, height: 56,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 24px', borderBottom: `1px solid ${C.navBorder}`,
-      fontFamily: "'DM Sans', sans-serif",
-    }}>
-      {/* Left: Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: 8, background: C.teal,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, padding: 6,
-        }}>
-          {[0,1,2,3].map(i => (
-            <div key={i} style={{ background: '#fff', borderRadius: 2 }} />
-          ))}
-        </div>
-        <span style={{ color: '#fff', fontWeight: 800, fontSize: 18, letterSpacing: '-0.3px' }}>EmPay</span>
-      </div>
-
-      {/* Center: Tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#2a2d35', borderRadius: 30, padding: '4px 6px' }}>
-        {tabs.map(tab => {
-          const active = tab.id === activeTab
-          return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 14px', borderRadius: 24, border: 'none', cursor: 'pointer',
-                background: active ? '#fff' : 'transparent',
-                color: active ? C.text : '#9ca3af',
-                fontWeight: active ? 700 : 500, fontSize: 13,
-                fontFamily: "'DM Sans', sans-serif",
-                transition: 'all .15s',
-              }}>
-              {tab.label}
-              {tab.badge && (
-                <span style={{
-                  background: C.teal, color: '#fff',
-                  borderRadius: 20, padding: '1px 7px', fontSize: 11, fontWeight: 700,
-                }}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Right: Add button */}
-      <button style={{
-        width: 34, height: 34, borderRadius: '50%', border: 'none',
-        background: C.amber, cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 22, color: '#fff', fontWeight: 300, lineHeight: 1,
-        boxShadow: '0 2px 8px rgba(245,158,11,0.4)',
-      }}>+</button>
-    </div>
-  )
-}
 
 // ── Page Header ──────────────────────────────────────────────────────────────
+
 function PageHeader({ currentDate, onPrev, onNext, onAdd, onReport, isPrivileged }) {
   const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -370,7 +303,6 @@ export default function Attendance() {
   const me = JSON.parse(localStorage.getItem('user') || '{}')
   const isPrivileged = ['ADMIN','HR_OFFICER','PAYROLL_OFFICER'].includes(me?.role)
 
-  const [activeTab,    setActiveTab]    = useState('attendance')
   const [currentDate,  setCurrentDate]  = useState(new Date())
   const [search,       setSearch]       = useState('')
   const [modalOpen,    setModalOpen]    = useState(false)
@@ -500,8 +432,6 @@ export default function Attendance() {
 
       {/* Main */}
       <div style={{ flex: 1, marginLeft: 64, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Top nav bar */}
-        <TopNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {/* Page header */}
         <PageHeader
