@@ -93,25 +93,19 @@ const createUser = async (req, res, next) => {
       },
     });
 
-    // ─── Send welcome email with credentials ────────────────────────────────
-    // Fire-and-forget: email failure must never break user creation.
-    sendWelcomeEmail({
+    // 11. Send welcome email with credentials (non-blocking — failure won't break user creation)
+    const emailResult = await sendWelcomeEmail({
       to:          email,
-      name,
+      name:        firstName,
       loginId,
       password:    plainPassword,
-      role,
       companyName: admin.companyName,
-    }).then(() => {
-      console.log(`📧 Welcome email sent to ${email}`);
-    }).catch((err) => {
-      // Log but don't fail — credentials are still in the API response
-      console.error(`⚠️  Failed to send welcome email to ${email}:`, err.message);
     });
 
-    // ⚠️  plainPassword is returned ONCE — shown in response AND emailed to user
+    // ⚠️ plainPassword returned ONCE — share manually if email fails
     res.status(201).json({
-      message:     'User created successfully. Welcome email sent to ' + email,
+      message:     'User created successfully',
+      emailSent:   emailResult.success,
       credentials: { loginId, password: plainPassword },
       user,
     });
@@ -157,4 +151,36 @@ const toggleActive = async (req, res, next) => {
   }
 };
 
-module.exports = { createUser, listUsers, toggleActive };
+// ─── UPDATE ROLE ─────────────────────────────────────────────────────────────
+// Route: PATCH /api/users/:id/role  (ADMIN only)
+const updateRole = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    const allowed = ['EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER', 'ADMIN'];
+    if (!role || !allowed.includes(role)) {
+      return res.status(400).json({ message: `role must be one of: ${allowed.join(', ')}` });
+    }
+
+    // Prevent admin from changing their own role
+    if (id === req.userId) {
+      return res.status(403).json({ message: 'You cannot change your own role' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { role },
+      select: { id: true, name: true, loginId: true, email: true, role: true },
+    });
+
+    res.json({ message: `Role updated to ${role}`, user: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { createUser, listUsers, toggleActive, updateRole };
