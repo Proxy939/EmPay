@@ -1,41 +1,51 @@
 import { useState } from 'react'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
 import {
-  UserPlus, Copy, Check, AlertCircle, Loader2,
+  UserPlus, Copy, Check, AlertCircle, Loader2, X,
   User, Mail, Phone, Briefcase, Building2, Calendar, ShieldCheck
 } from 'lucide-react'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogDescription, DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input }  from '@/components/ui/input'
-import { Label }  from '@/components/ui/label'
+import { useTheme } from '@/lib/theme'
 import api from '@/lib/api'
 
-// ── Role options ──────────────────────────────────────────────────────────────
 const ROLES = [
-  { value: 'EMPLOYEE',         label: 'Employee' },
-  { value: 'HR_OFFICER',       label: 'HR Officer' },
-  { value: 'PAYROLL_OFFICER',  label: 'Payroll Officer' },
+  { value: 'EMPLOYEE',        label: 'Employee'        },
+  { value: 'HR_OFFICER',      label: 'HR Officer'      },
+  { value: 'PAYROLL_OFFICER', label: 'Payroll Officer' },
 ]
 
-// ── Field helper ─────────────────────────────────────────────────────────────
-function Field({ label, icon: Icon, required, children }) {
+// ── Themed input ──────────────────────────────────────────────────────────────
+function TInput({ C, ...props }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="flex items-center gap-1.5 text-xs font-medium">
-        {Icon && <Icon className="size-3.5 text-muted-foreground" />}
-        {label} {required && <span className="text-primary">*</span>}
-      </Label>
+    <input
+      style={{
+        width: '100%', boxSizing: 'border-box',
+        height: 36, padding: '0 10px', borderRadius: 8,
+        border: `1px solid ${C.border}`, background: C.inputBg,
+        color: C.text, fontSize: 13, outline: 'none',
+        fontFamily: 'inherit',
+      }}
+      {...props}
+    />
+  )
+}
+
+// ── Field wrapper ─────────────────────────────────────────────────────────────
+function Field({ C, label, icon: Icon, required, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: C.muted }}>
+        {Icon && <Icon size={12} color={C.muted} />}
+        {label} {required && <span style={{ color: C.accent }}>*</span>}
+      </label>
       {children}
     </div>
   )
 }
 
-// ── Credentials Card (success state) ─────────────────────────────────────────
-function CredentialsCard({ credentials, onClose }) {
-  const [copiedId,  setCopiedId]  = useState(false)
-  const [copiedPw,  setCopiedPw]  = useState(false)
+// ── Credentials success card ──────────────────────────────────────────────────
+function CredentialsCard({ C, credentials, onClose }) {
+  const [copiedId, setCopiedId] = useState(false)
+  const [copiedPw, setCopiedPw] = useState(false)
 
   const copy = (text, setter) => {
     navigator.clipboard.writeText(text)
@@ -46,235 +56,240 @@ function CredentialsCard({ credentials, onClose }) {
   const CopyBtn = ({ text, copied, setter }) => (
     <button
       onClick={() => copy(text, setter)}
-      className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+      style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent',
+        border: 'none', cursor: 'pointer', color: C.accent, fontSize: 11, fontWeight: 600 }}
     >
-      {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+      {copied ? <Check size={12} color={C.green} /> : <Copy size={12} />}
       {copied ? 'Copied!' : 'Copy'}
     </button>
   )
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Success banner */}
-      <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-          <Check className="size-5 text-emerald-500" strokeWidth={2.5} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 12,
+        border: `1px solid ${C.green}40`, background: `${C.green}15`, padding: '12px 16px' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${C.green}25`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Check size={18} color={C.green} strokeWidth={2.5} />
         </div>
         <div>
-          <p className="text-sm font-semibold text-emerald-500">Employee account created!</p>
-          <p className="text-xs text-muted-foreground">Share these credentials securely — the password is shown only once.</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.green }}>Employee account created!</p>
+          <p style={{ margin: 0, fontSize: 12, color: C.muted }}>Share credentials securely — password shown only once.</p>
         </div>
       </div>
 
-      {/* Credentials */}
-      <div className="rounded-xl border border-border/60 bg-background/60 divide-y divide-border/40 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Login ID</p>
-            <p className="font-mono text-base font-bold text-foreground tracking-wider">{credentials.loginId}</p>
+      {/* Credentials box */}
+      <div style={{ borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+        {[
+          { label: 'Login ID', value: credentials.loginId, copied: copiedId, setter: setCopiedId },
+          { label: 'Temporary Password', value: credentials.password, copied: copiedPw, setter: setCopiedPw },
+        ].map((row, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderBottom: i === 0 ? `1px solid ${C.border}` : 'none',
+            background: C.inputBg }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{row.label}</p>
+              <p style={{ margin: 0, fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: C.text, letterSpacing: '0.05em' }}>{row.value}</p>
+            </div>
+            <CopyBtn text={row.value} copied={row.copied} setter={row.setter} />
           </div>
-          <CopyBtn text={credentials.loginId} copied={copiedId} setter={setCopiedId} />
-        </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Temporary Password</p>
-            <p className="font-mono text-base font-bold text-foreground">{credentials.password}</p>
-          </div>
-          <CopyBtn text={credentials.password} copied={copiedPw} setter={setCopiedPw} />
-        </div>
+        ))}
       </div>
 
-      {/* Warning note */}
-      <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2.5">
-        <AlertCircle className="size-4 shrink-0 text-amber-500 mt-0.5" />
-        <p className="text-xs text-amber-500">
-          The employee will be required to change their password on first login. Keep these credentials safe.
+      {/* Warning */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, borderRadius: 10,
+        border: `1px solid ${C.amber}60`, background: `${C.amber}15`, padding: '10px 12px' }}>
+        <AlertCircle size={14} color={C.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+        <p style={{ margin: 0, fontSize: 12, color: C.amber }}>
+          Employee must change password on first login. Keep these credentials safe.
         </p>
       </div>
 
-      <Button className="w-full" onClick={onClose}>Done</Button>
+      <button
+        onClick={onClose}
+        style={{ width: '100%', padding: '10px', borderRadius: 10, border: 'none',
+          background: C.accent, color: 'white', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+      >
+        Done
+      </button>
     </div>
   )
 }
 
 // ── New Employee Dialog ───────────────────────────────────────────────────────
 export default function NewEmployeeDialog({ open, onOpenChange, onCreated }) {
-  const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}')
-  const callerRole   = loggedInUser?.role || 'ADMIN'
+  const { colors: C } = useTheme()
+  const callerRole    = JSON.parse(localStorage.getItem('user') || '{}')?.role || 'ADMIN'
 
-  const [form, setForm] = useState({
-    name: '', email: '', phone: '', role: 'EMPLOYEE',
-    department: '', designation: '', joinDate: '',
-  })
-  const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState('')
-  const [credentials, setCredentials] = useState(null) // success state
+  const [form, setForm]           = useState({ name:'', email:'', phone:'', role:'EMPLOYEE', department:'', designation:'', joinDate:'' })
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+  const [credentials, setCreds]   = useState(null)
 
-  const set = (key) => (e) => {
-    setForm(f => ({ ...f, [key]: e.target.value }))
-    if (error) setError('')
-  }
+  const set = (key) => (e) => { setForm(f => ({ ...f, [key]: e.target.value })); if (error) setError('') }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
-      setError('Name, email and phone are required.')
-      return
-    }
-    if (!/^\d{10}$/.test(form.phone)) {
-      setError('Phone must be exactly 10 digits.')
-      return
-    }
-
-    setLoading(true)
-    setError('')
+    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) { setError('Name, email and phone are required.'); return }
+    if (!/^\d{10}$/.test(form.phone)) { setError('Phone must be exactly 10 digits.'); return }
+    setLoading(true); setError('')
     try {
       const res = await api.post('/users', {
-        name:        form.name.trim(),
-        email:       form.email.trim().toLowerCase(),
-        phone:       form.phone.trim(),
-        role:        form.role,
-        department:  form.department.trim() || undefined,
+        name: form.name.trim(), email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(), role: form.role,
+        department: form.department.trim() || undefined,
         designation: form.designation.trim() || undefined,
-        joinDate:    form.joinDate || undefined,
+        joinDate: form.joinDate || undefined,
       })
-      setCredentials(res.data.credentials)
-      onCreated?.() // refresh employee list
+      setCreds(res.data.credentials)
+      onCreated?.()
     } catch (err) {
-      setError(err.response?.data?.message ?? 'Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+      setError(err.response?.data?.message ?? 'Something went wrong.')
+    } finally { setLoading(false) }
   }
 
-  const handleClose = (open) => {
-    if (!open) {
-      setForm({ name: '', email: '', phone: '', role: 'EMPLOYEE', department: '', designation: '', joinDate: '' })
-      setError('')
-      setCredentials(null)
-    }
-    onOpenChange(open)
+  const handleClose = (val) => {
+    if (!val) { setForm({ name:'', email:'', phone:'', role:'EMPLOYEE', department:'', designation:'', joinDate:'' }); setError(''); setCreds(null) }
+    onOpenChange(val)
   }
 
-  // HR Officers can only assign EMPLOYEE role
   const availableRoles = callerRole === 'ADMIN' ? ROLES : ROLES.filter(r => r.value === 'EMPLOYEE')
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/15">
-              <UserPlus className="size-5 text-primary" />
+    <DialogPrimitive.Root open={open} onOpenChange={handleClose}>
+      <DialogPrimitive.Portal>
+        {/* Overlay */}
+        <DialogPrimitive.Overlay style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+        }} />
+
+        {/* Content */}
+        <DialogPrimitive.Content style={{
+          position: 'fixed', left: '50%', top: '50%', zIndex: 51,
+          transform: 'translate(-50%, -50%)',
+          width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto',
+          borderRadius: 16, border: `1px solid ${C.border}`,
+          background: C.card, boxShadow: C.shadow,
+          fontFamily: "'Geist Variable','Inter',sans-serif",
+        }}>
+          {/* Close button */}
+          <DialogPrimitive.Close style={{
+            position: 'absolute', right: 14, top: 14, background: 'transparent',
+            border: 'none', cursor: 'pointer', color: C.muted, padding: 4, borderRadius: 6,
+          }}>
+            <X size={16} color={C.muted} />
+          </DialogPrimitive.Close>
+
+          {/* Hidden a11y title/description required by Radix */}
+          <DialogPrimitive.Title style={{ position:'absolute', width:1, height:1, overflow:'hidden', clip:'rect(0,0,0,0)', whiteSpace:'nowrap' }}>
+            Add New Employee
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Description style={{ position:'absolute', width:1, height:1, overflow:'hidden', clip:'rect(0,0,0,0)', whiteSpace:'nowrap' }}>
+            Fill in employee details. A Login ID and temporary password will be auto-generated.
+          </DialogPrimitive.Description>
+
+          {/* Header */}
+          <div style={{ padding: '22px 24px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: C.accentL,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <UserPlus size={19} color={C.accent} />
             </div>
             <div>
-              <DialogTitle>Add New Employee</DialogTitle>
-              <DialogDescription className="mt-0.5">
-                System will auto-generate a Login ID and temporary password.
-              </DialogDescription>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>Add New Employee</p>
+              <p style={{ margin: 0, fontSize: 12, color: C.muted, marginTop: 2 }}>System will auto-generate a Login ID and temporary password.</p>
             </div>
           </div>
-        </DialogHeader>
 
-        <div className="px-6 pb-6">
-          {credentials ? (
-            <CredentialsCard credentials={credentials} onClose={() => handleClose(false)} />
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {/* Body */}
+          <div style={{ padding: '18px 24px 24px' }}>
+            {credentials ? (
+              <CredentialsCard C={C} credentials={credentials} onClose={() => handleClose(false)} />
+            ) : (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-              {/* Error */}
-              {error && (
-                <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/8 px-3 py-2.5 text-sm text-destructive">
-                  <AlertCircle className="size-4 shrink-0" />
-                  {error}
+                {/* Error */}
+                {error && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10,
+                    border: `1px solid ${C.red}40`, background: `${C.red}15`, padding: '10px 12px' }}>
+                    <AlertCircle size={14} color={C.red} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: C.red }}>{error}</span>
+                  </div>
+                )}
+
+                {/* Name */}
+                <Field C={C} label="Full Name" icon={User} required>
+                  <TInput C={C} value={form.name} onChange={set('name')} placeholder="e.g. Priya Sharma" />
+                </Field>
+
+                {/* Email + Phone */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field C={C} label="Work Email" icon={Mail} required>
+                    <TInput C={C} type="email" value={form.email} onChange={set('email')} placeholder="priya@company.com" />
+                  </Field>
+                  <Field C={C} label="Phone" icon={Phone} required>
+                    <TInput C={C} type="tel" value={form.phone} onChange={set('phone')} placeholder="10-digit number" maxLength={10} />
+                  </Field>
                 </div>
-              )}
 
-              {/* Row 1: Name */}
-              <Field label="Full Name" icon={User} required>
-                <Input
-                  value={form.name} onChange={set('name')}
-                  placeholder="e.g. Priya Sharma"
-                  className="h-9 bg-input/50 text-sm"
-                />
-              </Field>
-
-              {/* Row 2: Email + Phone */}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Work Email" icon={Mail} required>
-                  <Input
-                    type="email" value={form.email} onChange={set('email')}
-                    placeholder="priya@company.com"
-                    className="h-9 bg-input/50 text-sm"
-                  />
+                {/* Role toggle */}
+                <Field C={C} label="Role" icon={ShieldCheck} required>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {availableRoles.map(r => (
+                      <button key={r.value} type="button"
+                        onClick={() => setForm(f => ({ ...f, role: r.value }))}
+                        style={{
+                          flex: 1, padding: '8px 4px', borderRadius: 10, border: `1px solid`,
+                          borderColor: form.role === r.value ? C.accent : C.border,
+                          background: form.role === r.value ? C.accentL : C.inputBg,
+                          color: form.role === r.value ? C.accent : C.muted,
+                          fontWeight: form.role === r.value ? 600 : 500,
+                          fontSize: 12, cursor: 'pointer', transition: 'all .15s',
+                        }}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
                 </Field>
-                <Field label="Phone" icon={Phone} required>
-                  <Input
-                    type="tel" value={form.phone} onChange={set('phone')}
-                    placeholder="10-digit number" maxLength={10}
-                    className="h-9 bg-input/50 text-sm"
-                  />
-                </Field>
-              </div>
 
-              {/* Row 3: Role */}
-              <Field label="Role" icon={ShieldCheck} required>
-                <div className="flex gap-2">
-                  {availableRoles.map(r => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, role: r.value }))}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
-                        form.role === r.value
-                          ? 'border-primary bg-primary/15 text-primary'
-                          : 'border-border/60 bg-input/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                      }`}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
+                {/* Department + Designation */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field C={C} label="Department" icon={Building2}>
+                    <TInput C={C} value={form.department} onChange={set('department')} placeholder="e.g. Engineering" />
+                  </Field>
+                  <Field C={C} label="Designation" icon={Briefcase}>
+                    <TInput C={C} value={form.designation} onChange={set('designation')} placeholder="e.g. Software Eng." />
+                  </Field>
                 </div>
-              </Field>
 
-              {/* Row 4: Department + Designation */}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Department" icon={Building2}>
-                  <Input
-                    value={form.department} onChange={set('department')}
-                    placeholder="e.g. Engineering"
-                    className="h-9 bg-input/50 text-sm"
-                  />
+                {/* Join Date */}
+                <Field C={C} label="Joining Date" icon={Calendar}>
+                  <TInput C={C} type="date" value={form.joinDate} onChange={set('joinDate')} />
                 </Field>
-                <Field label="Designation" icon={Briefcase}>
-                  <Input
-                    value={form.designation} onChange={set('designation')}
-                    placeholder="e.g. Software Engineer"
-                    className="h-9 bg-input/50 text-sm"
-                  />
-                </Field>
-              </div>
 
-              {/* Row 5: Join Date */}
-              <Field label="Joining Date" icon={Calendar}>
-                <Input
-                  type="date" value={form.joinDate} onChange={set('joinDate')}
-                  className="h-9 bg-input/50 text-sm"
-                />
-              </Field>
-
-              <DialogFooter className="px-0 pt-2">
-                <Button type="button" variant="outline" onClick={() => handleClose(false)} className="h-9">
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading} className="h-9 gap-2">
-                  {loading ? <><Loader2 className="size-4 animate-spin" />Creating…</> : <><UserPlus className="size-4" />Create Employee</>}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
+                  <button type="button" onClick={() => handleClose(false)}
+                    style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`,
+                      background: 'transparent', color: C.muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={loading}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10,
+                      border: 'none', background: C.accent, color: 'white', fontWeight: 600, fontSize: 13,
+                      cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                    {loading
+                      ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Creating…</>
+                      : <><UserPlus size={14} /> Create Employee</>
+                    }
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   )
 }

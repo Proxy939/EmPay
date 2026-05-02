@@ -34,8 +34,10 @@ function App() {
         <Route path="/profile"    element={<ProtectedRoute><ComingSoon title="My Profile" /></ProtectedRoute>} />
 
         {/* Default redirects */}
-        <Route path="/"   element={<Navigate to="/dashboard" replace />} />
-        <Route path="*"   element={<Navigate to="/login" replace />} />
+        <Route path="/employees-list" element={<ProtectedRoute><ComingSoon title="Employees Grid" /></ProtectedRoute>} />
+        <Route path="/help"    element={<ProtectedRoute><ComingSoon title="Help" /></ProtectedRoute>} />
+        <Route path="/"        element={<Navigate to="/dashboard" replace />} />
+        <Route path="*"        element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   )
