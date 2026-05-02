@@ -10,6 +10,7 @@ import Attendance from './pages/Attendance'
 import Settings from './pages/Settings'
 import Payroll from './pages/Payroll'
 import Reports from './pages/Reports'
+import TimeOff from './pages/TimeOff'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // Placeholder — will be built as backend modules are done
@@ -41,7 +42,7 @@ function App() {
         <Route path="/change-password"  element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/employees/:id"    element={<ProtectedRoute><EmployeeProfile /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-        <Route path="/time-off"   element={<ProtectedRoute><ComingSoon title="Time Off" /></ProtectedRoute>} />
+        <Route path="/time-off"   element={<ProtectedRoute><TimeOff /></ProtectedRoute>} />
         <Route path="/payroll"    element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
         <Route path="/reports"    element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/settings"   element={<ProtectedRoute><Settings /></ProtectedRoute>} />
