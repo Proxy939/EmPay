@@ -209,4 +209,17 @@
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
+}
+
+/* ─── Login page: subtle gradient border on the form card ─────────────────── */
+@keyframes border-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ─── Input focus glow ────────────────────────────────────────────────────── */
+input:focus-visible {
+  box-shadow: 0 0 0 3px oklch(0.62 0.22 292 / 20%), 0 0 0 1px oklch(0.62 0.22 292 / 40%);
+}
+
