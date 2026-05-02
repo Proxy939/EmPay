@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Home from './pages/Home'
@@ -13,6 +13,11 @@ import Payroll from './pages/Payroll'
 import Reports from './pages/Reports'
 import TimeOff from './pages/TimeOff'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+
+// Role constants
+const ADMIN_ONLY         = ['ADMIN']
+const PAYROLL_ROLES      = ['ADMIN', 'PAYROLL_OFFICER']
+const ALL_STAFF          = ['ADMIN', 'HR_OFFICER', 'PAYROLL_OFFICER', 'EMPLOYEE']
 
 // Placeholder — will be built as backend modules are done
 const ComingSoon = ({ title }) => (
@@ -44,9 +49,9 @@ function App() {
         <Route path="/employees/:id"    element={<ProtectedRoute><EmployeeProfile /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
         <Route path="/time-off"   element={<ProtectedRoute><TimeOff /></ProtectedRoute>} />
-        <Route path="/payroll"    element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
-        <Route path="/reports"    element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-        <Route path="/settings"   element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/payroll"    element={<ProtectedRoute roles={PAYROLL_ROLES}><Payroll /></ProtectedRoute>} />
+        <Route path="/reports"    element={<ProtectedRoute roles={PAYROLL_ROLES}><Reports /></ProtectedRoute>} />
+        <Route path="/settings"   element={<ProtectedRoute roles={ADMIN_ONLY}><Settings /></ProtectedRoute>} />
         <Route path="/profile"    element={<ProtectedRoute><MyProfile /></ProtectedRoute>} />
 
         {/* Default redirects */}

@@ -40,6 +40,6 @@ router.get('/',                            protect, staff,   ctrl.getAllLeaves)
 router.post('/allocate',                   protect, adminHr, ctrl.allocateLeave)
 router.get('/balance/:employeeId',         protect, staff,   ctrl.getEmployeeBalance)
 router.get('/:id',                         protect, staff,   ctrl.getLeave)
-router.patch('/:id/review',                protect, admin,   ctrl.reviewLeave)
+router.patch('/:id/review',                protect, adminHr, ctrl.reviewLeave)
 
 module.exports = router

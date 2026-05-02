@@ -136,7 +136,24 @@ const getPayslipPdf = async (req, res, next) => {
   }
 }
 
-// ─── Misc ─────────────────────────────────────────────────────────────────────
+// GET /api/payroll/payslips/me — Employee views their own payslips
+const getMyPayslips = async (req, res, next) => {
+  try {
+    const { prisma } = require('../../config/prisma')
+    const emp = await prisma.employee.findUnique({ where: { userId: req.userId } })
+    if (!emp) return res.status(404).json({ message: 'Employee profile not found' })
+
+    const payslips = await prisma.payslip.findMany({
+      where: { employeeId: emp.id },
+      include: {
+        payrun: { select: { name: true, periodStart: true, periodEnd: true, status: true } },
+      },
+      orderBy: { periodStart: 'desc' },
+    })
+    res.json({ data: payslips })
+  } catch (err) { next(err) }
+}
+
 
 // GET /api/payroll/warnings
 const getWarnings = async (_req, res, next) => {
@@ -170,6 +187,7 @@ module.exports = {
   validatePayrun,
   getPayrunPayslips,
   getPayslipById,
+  getMyPayslips,
   updatePayslip,
   validatePayslip,
   getPayslipPdf,

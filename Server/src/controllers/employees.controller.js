@@ -369,6 +369,14 @@ const addSkill = async (req, res, next) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
+    // Ownership check — employees can only edit their own skills
+    if (!['ADMIN', 'HR_OFFICER'].includes(req.userRole)) {
+      const self = await prisma.employee.findUnique({ where: { userId: req.userId } });
+      if (!self || self.id !== id) {
+        return res.status(403).json({ message: 'You can only add skills to your own profile' });
+      }
+    }
+
     const skill = await prisma.skill.create({
       data: { employeeId: id, name },
     });
@@ -386,6 +394,14 @@ const removeSkill = async (req, res, next) => {
     const skill = await prisma.skill.findUnique({ where: { id: skillId } });
     if (!skill) {
       return res.status(404).json({ message: 'Skill not found' });
+    }
+
+    // Ownership check
+    if (!['ADMIN', 'HR_OFFICER'].includes(req.userRole)) {
+      const self = await prisma.employee.findUnique({ where: { userId: req.userId } });
+      if (!self || self.id !== skill.employeeId) {
+        return res.status(403).json({ message: 'You can only remove your own skills' });
+      }
     }
 
     await prisma.skill.delete({ where: { id: skillId } });
@@ -411,6 +427,14 @@ const addCertification = async (req, res, next) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
+    // Ownership check
+    if (!['ADMIN', 'HR_OFFICER'].includes(req.userRole)) {
+      const self = await prisma.employee.findUnique({ where: { userId: req.userId } });
+      if (!self || self.id !== id) {
+        return res.status(403).json({ message: 'You can only add certifications to your own profile' });
+      }
+    }
+
     const cert = await prisma.certification.create({
       data: { employeeId: id, name, issuer, year },
     });
@@ -428,6 +452,14 @@ const removeCertification = async (req, res, next) => {
     const cert = await prisma.certification.findUnique({ where: { id: certId } });
     if (!cert) {
       return res.status(404).json({ message: 'Certification not found' });
+    }
+
+    // Ownership check
+    if (!['ADMIN', 'HR_OFFICER'].includes(req.userRole)) {
+      const self = await prisma.employee.findUnique({ where: { userId: req.userId } });
+      if (!self || self.id !== cert.employeeId) {
+        return res.status(403).json({ message: 'You can only remove your own certifications' });
+      }
     }
 
     await prisma.certification.delete({ where: { id: certId } });
