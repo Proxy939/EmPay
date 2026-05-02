@@ -855,7 +855,12 @@ export default function Dashboard() {
     .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchAll() }, [])
+  // Initial load + auto-refresh every 30 seconds
+  useEffect(() => {
+    fetchAll()
+    const interval = setInterval(fetchAll, 30_000)
+    return () => clearInterval(interval)
+  }, [])
 
   const SIDEBAR_W = 64
 
