@@ -1,297 +1,429 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Search, Zap, IndianRupee, Building2, AlertTriangle, ArrowRight, Printer, CheckCircle2, ChevronRight, X, FileText } from 'lucide-react'
 import Sidebar from '@/components/layout/Sidebar'
-import { useTheme } from '@/lib/theme'
 
-/* ── Accent colors (static for charts) ───────────── */
-const A = '#4f46e5', TC = '#00b4d8', G = '#22c55e', O = '#f97316', R = '#ef4444'
-
-/* ── Theme-aware token getter ──────────────────── */
-function useT() {
-  const { colors } = useTheme()
-  return {
-    bg: colors.bg, card: colors.card, text: colors.text,
-    muted: colors.muted, border: colors.border, shadow: colors.shadow,
-    inputBg: colors.inputBg || colors.card,
-    tableBg: colors.tableBg || colors.card,
-    hover: colors.hover || colors.card,
-  }
+// Static light-mode theme tokens (shadcn-aligned)
+const T = {
+  bg: '#f8fafc',
+  card: '#ffffff',
+  text: '#0f172a',
+  muted: '#64748b',
+  border: '#e2e8f0',
+  indigo: '#4f46e5',
+  indigoL: '#eef2ff',
+  green: '#10b981',
+  amber: '#f59e0b',
+  red: '#ef4444',
+  teal: '#14b8a6',
+  cyan: '#06b6d4',
+  shadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05)',
+  radius: 12
 }
+
+const A = T.indigo, TC = T.cyan, G = T.green, O = T.amber, R = T.red
+
 const inr = v => '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const pill = (bg, color) => ({ background: bg, color, padding: '3px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, display: 'inline-block' })
+const pill = (bg, color) => ({ background: bg, color, padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 })
 
-/* ── Mock data ─────────────────────────────────── */
-const COST_D = {
-  annually: [{ m: 'Jan 25', v: 43800 }, { m: 'Feb 25', v: 49200 }, { m: 'Mar 25', v: 49800 }, { m: 'Apr 25', v: 51000 }, { m: 'May 25', v: 48000 }],
-  monthly: [{ m: 'Wk 1', v: 11000 }, { m: 'Wk 2', v: 12400 }, { m: 'Wk 3', v: 10600 }, { m: 'Wk 4', v: 9800 }]
-}
-const CNT_D = {
-  annually: [{ m: 'Jan 25', v: 8 }, { m: 'Feb 25', v: 10 }, { m: 'Mar 25', v: 12 }, { m: 'Apr 25', v: 12 }, { m: 'May 25', v: 13 }],
-  monthly: [{ m: 'Wk 1', v: 11 }, { m: 'Wk 2', v: 12 }, { m: 'Wk 3', v: 12 }, { m: 'Wk 4', v: 13 }]
-}
-const PAYRUNS = [
-  { id: 1, name: 'Payrun Oct 2025', period: '01 Oct – 31 Oct', emps: 3, cost: 49800, gross: 50000, net: 43800, status: 'Pending' },
-  { id: 2, name: 'Payrun Sep 2025', period: '01 Sep – 30 Sep', emps: 3, cost: 49200, gross: 50000, net: 43200, status: 'Validated' },
-  { id: 3, name: 'Payrun Aug 2025', period: '01 Aug – 31 Aug', emps: 5, cost: 82000, gross: 85000, net: 76500, status: 'Done' },
-]
-const PAYSLIPS = [
-  { id: 1, name: 'Arjun Mehta', code: 'OIARM E20230001', cost: 16600, basic: 25000, gross: 50000, net: 43800, status: 'Done' },
-  { id: 2, name: 'Priya Sharma', code: 'OIPRSH20220042', cost: 16600, basic: 25000, gross: 50000, net: 43800, status: 'Pending' },
-  { id: 3, name: 'Rohit Kulkarni', code: 'OIROKU20210018', cost: 16600, basic: 25000, gross: 50000, net: 43800, status: 'Pending' },
-]
+/* ── Mock data (Tables only) ────────────────────── */
 const ST = {
   Pending: ['#fef3c7', '#d97706'],
   'In Progress': ['#dbeafe', '#1d4ed8'],
   Validated: ['#e0e7ff', '#4338ca'],
   Done: ['#dcfce7', '#16a34a'],
+  Computed: ['#e0f2fe', '#0284c7'],
 }
 
 /* ── Tiny shared components ────────────────────── */
-const Badge = ({ s }) => { const [bg, c] = ST[s] || ['#f3f4f6', '#374151']; return <span style={pill(bg, c)}>{s}</span> }
+const Badge = ({ s }) => { const [bg, c] = ST[s] || ['#f1f5f9', '#475569']; return <span style={pill(bg, c)}>{s}</span> }
 
 const Toggle = ({ val, set }) => (
-  <div style={{ display: 'flex', border: `1px solid ${A}`, borderRadius: 999, overflow: 'hidden', fontSize: 11 }}>
+  <div style={{ display: 'flex', border: `1px solid ${T.border}`, borderRadius: 8, overflow: 'hidden', fontSize: 11, background: T.card, padding: 2 }}>
     {['annually', 'monthly'].map(m => (
       <button key={m} onClick={() => set(m)} style={{
-        padding: '3px 13px', border: 'none', cursor: 'pointer', fontWeight: 600,
-        background: val === m ? A : '#fff', color: val === m ? '#fff' : A, textTransform: 'capitalize', transition: 'all .15s'
+        padding: '4px 14px', border: 'none', cursor: 'pointer', fontWeight: 600, borderRadius: 6,
+        background: val === m ? T.indigo : 'transparent', color: val === m ? '#fff' : T.muted, textTransform: 'capitalize', transition: 'all .15s'
       }}>{m}</button>
     ))}
   </div>
 )
 
-const ChartCard = ({ title, data, color, mode, onMode, t }) => (
-  <div style={{ background: t.card, borderRadius: 14, boxShadow: t.shadow, padding: '20px 22px', flex: 1, minWidth: 0 }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontWeight: 700, fontSize: 14, color: t.text }}>{title}</span>
+const ChartCard = ({ title, data, color, mode, onMode }) => (
+  <div style={{ background: T.card, borderRadius: T.radius, boxShadow: T.shadow, padding: '24px', flex: 1, minWidth: 0, border: `1px solid ${T.border}` }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <span style={{ fontWeight: 700, fontSize: 15, color: T.text }}>{title}</span>
       <Toggle val={mode} set={onMode} />
     </div>
-    <ResponsiveContainer width="100%" height={140}>
-      <BarChart data={data[mode]} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={t.border} />
-        <XAxis dataKey="m" tick={{ fontSize: 10, fill: t.text }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 10, fill: t.text }} width={48} axisLine={false} tickLine={false} />
-        <Tooltip formatter={v => inr(v)} contentStyle={{ background: t.card, borderColor: t.border, color: t.text }} />
-        <Bar dataKey="v" fill={color} radius={[4, 4, 0, 0]} />
+    <ResponsiveContainer width="100%" height={160}>
+      <BarChart data={data[mode]} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false} />
+        <XAxis dataKey="m" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} dy={10} />
+        <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
+        <Tooltip formatter={v => inr(v)} cursor={{ fill: T.bg }} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: T.shadow, fontSize: 12, fontWeight: 600 }} />
+        <Bar dataKey="v" fill={color} radius={[4, 4, 0, 0]} maxBarSize={40} />
       </BarChart>
     </ResponsiveContainer>
   </div>
 )
 
-/* ── DASHBOARD TAB ───────────────────────────────── */
-function DashboardTab({ employees }) {
-  const t = useT()
-  const card = { background: t.card, borderRadius: 14, boxShadow: t.shadow, padding: '20px 22px' }
-  const [cm, setCm] = useState('annually'), [em, setEm] = useState('annually')
-  const noBank = employees.filter(e => !e.bankAccountNumber).length
-  const noMgr = employees.filter(e => !e.managerId).length
+/* ── CREATE PAYRUN MODAL ────────────────────────── */
+function CreatePayrunModal({ onClose, onCreated }) {
+  const [name, setName] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setErr('')
+    if (!name || !start || !end) return setErr('All fields are required')
+    setLoading(true)
+    try {
+      const api = (await import('../lib/api')).default
+      await api.post('/payroll', { name, periodStart: start, periodEnd: end })
+      onCreated()
+      onClose()
+    } catch (e) {
+      setErr(e.response?.data?.message || e.message || 'Error creating payrun')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const inp = { width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${T.border}`, outline: 'none', background: '#fff', color: T.text, fontSize: 13, marginBottom: 16, boxSizing: 'border-box' }
+  const lbl = { display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600, color: T.text }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, fontFamily: 'inherit' }}>
-      {/* Search */}
-      <input placeholder="🔍  Search Member Or Category    ⌘ + F" style={{
-        width: '100%', padding: '11px 16px', borderRadius: 10, border: `1px solid ${t.border}`,
-        fontSize: 13, outline: 'none', boxSizing: 'border-box', background: t.card, color: t.text
-      }} />
-
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr', gap: 16 }}>
-        <div style={{ background: A, borderRadius: 14, padding: '24px 22px', color: '#fff', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ width: 38, height: 38, background: 'rgba(255,255,255,0.18)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📊</div>
-          <p style={{ margin: 0, fontWeight: 800, fontSize: 15 }}>Generate Payroll Report</p>
-          <p style={{ margin: 0, fontSize: 12, opacity: .78 }}>Analyze your payroll data with AI-powered insights</p>
-          <button style={{ background: '#fff', color: A, border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer', alignSelf: 'flex-start', marginTop: 4 }}>⚡ Generate Report</button>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: T.bg, borderRadius: 16, width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: T.text }}>Create New Payrun</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted }}><X size={18} /></button>
         </div>
-        <div style={card}>
-          <div style={{ width: 36, height: 36, background: '#e0f7fa', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, fontSize: 18 }}>💰</div>
-          <p style={{ margin: 0, fontSize: 12, color: t.muted, fontWeight: 500 }}>Monthly Payroll</p>
-          <p style={{ margin: '7px 0 10px', fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{inr(43800)}</p>
-          <span style={pill('#fee2e2', R)}>▼ -18.24%</span>
-        </div>
-        <div style={card}>
-          <div style={{ width: 36, height: 36, background: '#ede9fe', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, fontSize: 18 }}>🏢</div>
-          <p style={{ margin: 0, fontSize: 12, color: t.muted, fontWeight: 500 }}>Total Employer Cost</p>
-          <p style={{ margin: '7px 0 10px', fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{inr(49800)}</p>
-          <span style={pill('#dcfce7', '#16a34a')}>▲ +24.92%</span>
-        </div>
-      </div>
-
-      {/* Warnings */}
-      {(noBank > 0 || noMgr > 0) && (
-        <div style={card}>
-          <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: O }}>⚠</span> Warnings
-          </p>
-          {noBank > 0 && (
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              borderLeft: `3px solid ${O}`, paddingLeft: 12, marginBottom: 10, paddingTop: 2, paddingBottom: 2
-            }}>
-              <span style={{ fontSize: 13 }}>⚠ {noBank} Employee without Bank A/C</span>
-              <button style={{ background: 'none', border: 'none', color: TC, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Fix Now →</button>
+        <form onSubmit={submit} style={{ padding: 24 }}>
+          {err && <p style={{ margin: '0 0 16px', color: T.red, fontSize: 13, fontWeight: 600 }}>{err}</p>}
+          <label style={lbl}>Payrun Name</label>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. May 2026 Payroll" style={inp} autoFocus/>
+          
+          <div style={{ display: 'flex', gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <label style={lbl}>Start Date</label>
+              <input type="date" value={start} onChange={e=>setStart(e.target.value)} style={inp}/>
             </div>
-          )}
-          {noMgr > 0 && (
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              borderLeft: `3px solid ${O}`, paddingLeft: 12, paddingTop: 2, paddingBottom: 2
-            }}>
-              <span style={{ fontSize: 13 }}>⚠ {noMgr} Employee without Manager</span>
-              <button style={{ background: 'none', border: 'none', color: TC, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Fix Now →</button>
+            <div style={{ flex: 1 }}>
+              <label style={lbl}>End Date</label>
+              <input type="date" value={end} onChange={e=>setEnd(e.target.value)} style={inp}/>
             </div>
-          )}
-        </div>
-      )}
+          </div>
 
-      {/* Charts */}
-      <div style={{ display: 'flex', gap: 16 }}>
-        <ChartCard title="Employer Cost" data={COST_D} color={A} mode={cm} onMode={setCm} t={t} />
-        <ChartCard title="Employee Count" data={CNT_D} color={TC} mode={em} onMode={setEm} t={t} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+            <button type="button" onClick={onClose} style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 16px', fontWeight: 600, color: T.text, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+            <button type="submit" disabled={loading} style={{ background: T.indigo, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13 }}>{loading ? 'Creating...' : 'Create Payrun'}</button>
+          </div>
+        </form>
       </div>
     </div>
   )
 }
 
+/* ── DASHBOARD TAB ───────────────────────────────── */
+function DashboardTab() {
+  const card = { background: T.card, borderRadius: T.radius, boxShadow: T.shadow, padding: '24px', border: `1px solid ${T.border}` }
+  const [cm, setCm] = useState('annually'), [em, setEm] = useState('annually')
+  const [showAI, setShowAI] = useState(false)
+  
+  const [data, setData] = useState({
+    cost: { annually: [], monthly: [] },
+    count: { annually: [], monthly: [] },
+    summary: { mp: 0, mpDiff: 0, tc: 0, tcDiff: 0 }
+  })
+
+  useEffect(() => {
+    import('../lib/api').then(m => {
+      const api = m.default
+      const year = new Date().getFullYear()
+      Promise.all([
+        api.get(`/dashboard/employer-cost-trend?year=${year}`),
+        api.get(`/dashboard/employee-count-trend?year=${year}`)
+      ]).then(([cRes, eRes]) => {
+        const cTrend = cRes.data.data || []
+        const eTrend = eRes.data.data || []
+        
+        const annCost = cTrend.map(c => ({ m: c.month, v: c.employerCost }))
+        const annCount = eTrend.map(c => ({ m: c.month, v: c.count }))
+        
+        const cmIdx = new Date().getMonth()
+        const pmIdx = cmIdx === 0 ? 0 : cmIdx - 1
+        
+        const currC = cTrend[cmIdx] || { grossPayroll: 0, employerCost: 0 }
+        const prevC = cTrend[pmIdx] || { grossPayroll: 0, employerCost: 0 }
+        
+        const mpDiff = prevC.grossPayroll ? ((currC.grossPayroll - prevC.grossPayroll) / prevC.grossPayroll) * 100 : 0
+        const tcDiff = prevC.employerCost ? ((currC.employerCost - prevC.employerCost) / prevC.employerCost) * 100 : 0
+        
+        const currCount = annCount[cmIdx]?.v || 0
+
+        setData({
+          cost: {
+            annually: annCost,
+            monthly: [
+              { m: 'Wk 1', v: currC.employerCost * 0.25 },
+              { m: 'Wk 2', v: currC.employerCost * 0.25 },
+              { m: 'Wk 3', v: currC.employerCost * 0.25 },
+              { m: 'Wk 4', v: currC.employerCost * 0.25 }
+            ]
+          },
+          count: {
+            annually: annCount,
+            monthly: [
+              { m: 'Wk 1', v: currCount },
+              { m: 'Wk 2', v: currCount },
+              { m: 'Wk 3', v: currCount },
+              { m: 'Wk 4', v: currCount }
+            ]
+          },
+          summary: { mp: currC.grossPayroll, mpDiff, tc: currC.employerCost, tcDiff }
+        })
+      }).catch(console.error)
+    })
+  }, [])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, fontFamily: 'inherit' }}>
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={card}>
+          <div style={{ width: 40, height: 40, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><IndianRupee size={20} color={T.text} /></div>
+          <p style={{ margin: 0, fontSize: 13, color: T.muted, fontWeight: 600 }}>Monthly Payroll</p>
+          <p style={{ margin: '8px 0 12px', fontSize: 28, fontWeight: 800, lineHeight: 1, color: T.text }}>{inr(data.summary.mp)}</p>
+          <span style={pill(data.summary.mpDiff >= 0 ? '#dcfce7' : '#fee2e2', data.summary.mpDiff >= 0 ? '#16a34a' : R)}>
+            {data.summary.mpDiff >= 0 ? '▲ +' : '▼ '}{data.summary.mpDiff.toFixed(2)}%
+          </span>
+        </div>
+        <div style={card}>
+          <div style={{ width: 40, height: 40, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><Building2 size={20} color={T.text} /></div>
+          <p style={{ margin: 0, fontSize: 13, color: T.muted, fontWeight: 600 }}>Total Employer Cost</p>
+          <p style={{ margin: '8px 0 12px', fontSize: 28, fontWeight: 800, lineHeight: 1, color: T.text }}>{inr(data.summary.tc)}</p>
+          <span style={pill(data.summary.tcDiff >= 0 ? '#dcfce7' : '#fee2e2', data.summary.tcDiff >= 0 ? '#16a34a' : R)}>
+            {data.summary.tcDiff >= 0 ? '▲ +' : '▼ '}{data.summary.tcDiff.toFixed(2)}%
+          </span>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div style={{ display: 'flex', gap: 16 }}>
+        <ChartCard title="Employer Cost" data={data.cost} color={T.indigo} mode={cm} onMode={setCm} />
+        <ChartCard title="Employee Count" data={data.count} color={T.cyan} mode={em} onMode={setEm} />
+      </div>
+    </div>
+  )
+}
+
+
 /* ── PAYRUN LIST ────────────────────────────────── */
 function PayrunList({ onOpen }) {
-  const t = useT()
-  const card = { background: t.card, borderRadius: 14, boxShadow: t.shadow }
+  const card = { background: T.card, borderRadius: T.radius, boxShadow: T.shadow, border: `1px solid ${T.border}` }
   const [filter, setFilter] = useState('All')
-  const filters = ['All', 'Pending', 'In Progress', 'Validated', 'Done']
-  const rows = filter === 'All' ? PAYRUNS : PAYRUNS.filter(r => r.status === filter)
-  const TH = {
-    padding: '11px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: t.muted,
-    borderBottom: `1px solid ${t.border}`, textTransform: 'uppercase', letterSpacing: '0.05em'
+  const [payruns, setPayruns] = useState([])
+  const [showCreate, setShowCreate] = useState(false)
+  
+  const fetchPayruns = () => {
+    import('../lib/api').then(m => m.default.get('/payroll')).then(r => {
+      setPayruns(r.data.data || [])
+    }).catch(console.error)
   }
-  const TD = { padding: '12px 16px', fontSize: 13, color: t.text }
+  useEffect(() => { fetchPayruns() }, [])
+
+  const filters = ['All', 'PENDING', 'IN_PROGRESS', 'VALIDATED', 'DONE']
+  const rows = filter === 'All' ? payruns : payruns.filter(r => r.status === filter)
+
+  const TH = { padding: '14px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: T.muted, borderBottom: `1px solid ${T.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }
+  const TD = { padding: '14px 20px', fontSize: 13, color: T.text }
+  
+  const formatPeriod = (s, e) => {
+    const f = d => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    return `${f(s)} – ${f(e)}`
+  }
+
+  const formatStatus = s => s.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ fontWeight: 800, fontSize: 20 }}>Payruns</span>
-        <button style={{ background: A, color: '#fff', border: 'none', borderRadius: 9, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ New Payrun</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <span style={{ fontWeight: 800, fontSize: 18, color: T.text }}>Payruns</span>
+        <button onClick={() => setShowCreate(true)} style={{ background: T.indigo, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>+ New Payrun</button>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {filters.map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
-            padding: '5px 16px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 12, transition: 'all .15s',
-            background: filter === f ? A : '#f3f4f6', color: filter === f ? '#fff' : '#374151'
-          }}>{f}</button>
+            padding: '6px 16px', borderRadius: 999, border: `1px solid ${filter === f ? T.indigo : T.border}`, cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all .15s',
+            background: filter === f ? T.indigoL : '#fff', color: filter === f ? T.indigo : T.muted
+          }}>{f === 'All' ? 'All' : formatStatus(f)}</button>
         ))}
       </div>
       <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ background: '#f9fafb' }}>
+          <thead><tr style={{ background: T.bg }}>
             {['Payrun Name', 'Period', 'Employees', 'Employer Cost', 'Gross', 'Net', 'Status', 'Action'].map(h => (
               <th key={h} style={TH}>{h}</th>
             ))}
           </tr></thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+              <tr key={r.id} style={{ borderBottom: `1px solid ${T.border}` }}
+                onMouseEnter={e => e.currentTarget.style.background = T.bg}
                 onMouseLeave={e => e.currentTarget.style.background = ''}>
-                <td style={{ ...TD, fontWeight: 600 }}>{r.name}</td>
-                <td style={{ ...TD, color: '#6b7280' }}>{r.period}</td>
-                <td style={TD}>{r.emps} Employees</td>
-                <td style={TD}>{inr(r.cost)}</td>
-                <td style={TD}>{inr(r.gross)}</td>
-                <td style={TD}>{inr(r.net)}</td>
-                <td style={TD}><Badge s={r.status} /></td>
+                <td style={{ ...TD, fontWeight: 700 }}>{r.name}</td>
+                <td style={{ ...TD, color: T.muted }}>{formatPeriod(r.periodStart, r.periodEnd)}</td>
+                <td style={{ ...TD, color: T.muted }}>{r._count?.payslips || 0} Employees</td>
+                <td style={TD}>{inr(r.totalEmployerCost || 0)}</td>
+                <td style={TD}>{inr(r.totalGross || 0)}</td>
+                <td style={{ ...TD, fontWeight: 700 }}>{inr(r.totalNet || 0)}</td>
+                <td style={TD}><Badge s={formatStatus(r.status)} /></td>
                 <td style={TD}>
                   <button onClick={() => onOpen(r)} style={{
-                    background: A, color: '#fff', border: 'none',
-                    borderRadius: 7, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                  }}>Open →</button>
+                    background: '#fff', color: T.text, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6,
+                    borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                  }}>Open <ArrowRight size={14} /></button>
                 </td>
               </tr>
             ))}
+            {rows.length === 0 && <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: T.muted }}>No payruns found.</td></tr>}
           </tbody>
         </table>
       </div>
+      {showCreate && <CreatePayrunModal onClose={() => setShowCreate(false)} onCreated={fetchPayruns} />}
     </div>
   )
 }
 
 /* ── PAYSLIP LIST ───────────────────────────────── */
 function PayslipList({ payrun, onView, onBack }) {
-  const t = useT()
-  const card = { background: t.card, borderRadius: 14, boxShadow: t.shadow }
+  const card = { background: T.card, borderRadius: T.radius, boxShadow: T.shadow, border: `1px solid ${T.border}` }
   const TH = {
-    padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: t.muted,
-    borderBottom: `1px solid ${t.border}`, textTransform: 'uppercase', letterSpacing: '0.04em'
+    padding: '14px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: T.muted,
+    borderBottom: `1px solid ${T.border}`, textTransform: 'uppercase', letterSpacing: '0.04em'
   }
-  const TD = { padding: '11px 14px', fontSize: 13, color: t.text }
+  const TD = { padding: '14px 20px', fontSize: 13, color: T.text }
+
+  const [pr, setPr] = useState(payrun)
+  const [payslips, setPayslips] = useState([])
+  const [loadingAction, setLoadingAction] = useState(false)
+
+  const fetchData = async () => {
+    try {
+      const api = (await import('../lib/api')).default
+      const [prRes, psRes] = await Promise.all([
+        api.get(`/payroll/${payrun.id}`),
+        api.get(`/payroll/${payrun.id}/payslips`)
+      ])
+      setPr(prRes.data.data)
+      setPayslips(psRes.data.data)
+    } catch(e) { console.error(e) }
+  }
+  
+  useEffect(() => { fetchData() }, [payrun.id])
+
+  const handleGenerate = async () => {
+    setLoadingAction(true)
+    try {
+      const api = (await import('../lib/api')).default
+      await api.post(`/payroll/${payrun.id}/generate`)
+      await fetchData()
+    } catch(e) { alert(e.response?.data?.message || 'Error generating payslips') }
+    setLoadingAction(false)
+  }
+
+  const handleValidate = async () => {
+    setLoadingAction(true)
+    try {
+      const api = (await import('../lib/api')).default
+      await api.patch(`/payroll/${payrun.id}/validate`)
+      await fetchData()
+    } catch(e) { alert(e.response?.data?.message || 'Error validating payrun') }
+    setLoadingAction(false)
+  }
+
+  const formatPeriod = (s) => {
+    return new Date(s).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+  }
+  const formatStatus = s => s.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
+
   return (
-    <div>
+    <div style={{ fontFamily: 'inherit' }}>
       {/* Breadcrumb */}
-      <p style={{ margin: '0 0 10px', fontSize: 12, color: '#9ca3af' }}>
-        Payroll &rsaquo; Payruns &rsaquo; <span style={{ color: A, fontWeight: 600 }}>{payrun.name}</span>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: T.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', alignItems: 'center', padding: 0, gap: 4 }}><ArrowRight size={14} style={{ transform: 'rotate(180deg)' }}/> Back</button>
+        <span style={{color:T.border}}>|</span> <span>Payroll</span> <ChevronRight size={12} /> <span>Payruns</span> <ChevronRight size={12} /> <span style={{ color: T.text, fontWeight: 600 }}>{pr.name}</span>
       </p>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <button onClick={onBack} style={{
-          background: '#f3f4f6', border: 'none', borderRadius: 8,
-          padding: '7px 16px', fontWeight: 600, fontSize: 12, cursor: 'pointer'
-        }}>← Back</button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>{payrun.name}</span>
-        <Badge s={payrun.status} />
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button style={{
-            border: `1.5px solid ${A}`, color: A, background: '#fff', borderRadius: 8,
-            padding: '7px 18px', fontWeight: 700, fontSize: 12, cursor: 'pointer'
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        <h2 style={{ margin: 0, fontWeight: 800, fontSize: 24, color: T.text }}>{pr.name}</h2>
+        <Badge s={formatStatus(pr.status)} />
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+          <button onClick={handleValidate} disabled={loadingAction} style={{
+            border: `1px solid ${T.border}`, color: T.text, background: '#fff', borderRadius: 8,
+            padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: loadingAction ? 'not-allowed' : 'pointer'
           }}>Validate</button>
-          <button style={{
-            background: A, color: '#fff', border: 'none', borderRadius: 8,
-            padding: '7px 18px', fontWeight: 700, fontSize: 12, cursor: 'pointer'
-          }}>⚡ Generate All Payslips</button>
+          <button onClick={handleGenerate} disabled={loadingAction} style={{
+            background: T.indigo, color: '#fff', border: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: loadingAction ? 'not-allowed' : 'pointer'
+          }}><Zap size={14} /> Generate All Payslips</button>
         </div>
       </div>
       {/* Summary pills */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        {[['Total', payrun.gross], ['Employer Cost', payrun.cost], ['Net', payrun.net]].map(([l, v]) => (
-          <div key={l} style={{ background: '#eef2ff', borderRadius: 9, padding: '8px 18px' }}>
-            <span style={{ fontSize: 12, color: '#6b7280' }}>{l}: </span>
-            <span style={{ fontWeight: 700, color: A }}>{inr(v)}</span>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+        {[['Total', pr.totalGross || 0], ['Employer Cost', pr.totalEmployerCost || 0], ['Net', pr.totalNet || 0]].map(([l, v]) => (
+          <div key={l} style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 20px' }}>
+            <span style={{ fontSize: 13, color: T.muted, display: 'block', marginBottom: 4, fontWeight: 500 }}>{l}</span>
+            <span style={{ fontWeight: 800, fontSize: 18, color: T.text }}>{inr(v)}</span>
           </div>
         ))}
       </div>
       {/* Table */}
       <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ background: '#f9fafb' }}>
+          <thead><tr style={{ background: T.bg }}>
             {['Employee', 'Pay Period', 'Employer Cost', 'Basic Wage', 'Gross Wage', 'Net Wage', 'Status', 'Action'].map(h => (
               <th key={h} style={TH}>{h}</th>
             ))}
           </tr></thead>
           <tbody>
-            {PAYSLIPS.map(p => (
-              <tr key={p.id} style={{ borderBottom: '1px solid #f3f4f6' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+            {payslips.map(p => (
+              <tr key={p.id} style={{ borderBottom: `1px solid ${T.border}` }}
+                onMouseEnter={e => e.currentTarget.style.background = T.bg}
                 onMouseLeave={e => e.currentTarget.style.background = ''}>
                 <td style={TD}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%', background: A, color: '#fff',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
-                    fontWeight: 700, marginRight: 10, verticalAlign: 'middle'
-                  }}>
-                    {p.name[0]}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%', background: T.indigoL, color: T.indigo,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700
+                    }}>
+                      {p.employee.firstName[0]}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, color: T.text }}>{p.employee.firstName} {p.employee.lastName}</div>
+                      <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>{p.employee.user?.loginId || 'EMP'}</div>
+                    </div>
                   </div>
-                  <span style={{ fontWeight: 600 }}>{p.name}</span>
-                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{p.code}</div>
                 </td>
-                <td style={{ ...TD, color: '#6b7280' }}>Oct 2025</td>
-                <td style={TD}>{inr(p.cost)}</td>
-                <td style={TD}>{inr(p.basic)}</td>
-                <td style={TD}>{inr(p.gross)}</td>
-                <td style={{ ...TD, fontWeight: 700 }}>{inr(p.net)}</td>
-                <td style={TD}><Badge s={p.status} /></td>
+                <td style={{ ...TD, color: T.muted }}>{formatPeriod(p.periodStart)}</td>
+                <td style={TD}>{inr(p.employerCost || 0)}</td>
+                <td style={TD}>{inr(p.basicWage || 0)}</td>
+                <td style={TD}>{inr(p.grossAmount || 0)}</td>
+                <td style={{ ...TD, fontWeight: 700 }}>{inr(p.netAmount || 0)}</td>
+                <td style={TD}><Badge s={formatStatus(p.status)} /></td>
                 <td style={TD}>
                   <button onClick={() => onView(p)} style={{
-                    border: `1.5px solid ${A}`, color: A,
-                    background: '#fff', borderRadius: 7, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer'
+                    background: '#fff', color: T.text, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6,
+                    borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer'
                   }}>View</button>
                 </td>
               </tr>
             ))}
+            {payslips.length === 0 && <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: T.muted }}>No payslips found. Click "Generate All Payslips".</td></tr>}
           </tbody>
         </table>
       </div>
@@ -331,24 +463,24 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
                 <button onClick={() => setStep(i)} style={{
                   display: 'flex', alignItems: 'center', gap: 7, padding: '6px 16px', borderRadius: 999, border: 'none',
                   cursor: 'pointer', fontWeight: 700, fontSize: 12, transition: 'all .15s',
-                  background: step === i ? A : 'transparent', color: step === i ? '#fff' : '#6b7280'
+                  background: step === i ? T.indigo : 'transparent', color: step === i ? '#fff' : T.muted
                 }}>
                   <span style={{
                     width: 20, height: 20, borderRadius: '50%', display: 'inline-flex', alignItems: 'center',
                     justifyContent: 'center', fontSize: 11, fontWeight: 800,
-                    background: step === i ? 'rgba(255,255,255,0.25)' : i < step ? G : '#e5e7eb',
-                    color: step === i ? '#fff' : i < step ? '#fff' : '#9ca3af'
-                  }}>{i < step ? '✓' : i + 1}</span>
+                    background: step === i ? 'rgba(255,255,255,0.25)' : i < step ? T.green : T.border,
+                    color: step === i ? '#fff' : i < step ? '#fff' : T.muted
+                  }}>{i < step ? <CheckCircle2 size={12}/> : i + 1}</span>
                   {s}
                 </button>
-                {i < STEPS.length - 1 && <span style={{ color: '#d1d5db', margin: '0 2px' }}>›</span>}
+                {i < STEPS.length - 1 && <ChevronRight size={14} style={{ color: T.border, margin: '0 4px' }}/>}
               </div>
             ))}
           </div>
           <button onClick={onClose} style={{
-            background: '#f3f4f6', border: 'none', borderRadius: 8,
-            padding: '6px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', color: '#374151'
-          }}>✕ Close</button>
+            background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8,
+            padding: '6px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', color: T.text, display: 'flex', alignItems: 'center', gap: 6
+          }}><X size={14} /> Close</button>
         </div>
 
         <div style={{ padding: '22px 28px' }}>
@@ -446,9 +578,9 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
 
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
-            <button onClick={() => setStep(s => Math.max(0, s - 1))} style={{ border: '1px solid #e5e7eb', background: '#fff', color: '#374151', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>← Back</button>
-            <button onClick={() => setStep(s => Math.min(3, s + 1))} style={{ background: A, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Next →</button>
-            <button onClick={onPrint} style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>🖨 Print</button>
+            <button onClick={() => setStep(s => Math.max(0, s - 1))} style={{ border: `1px solid ${T.border}`, background: '#fff', color: T.text, borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Back</button>
+            <button onClick={() => setStep(s => Math.min(3, s + 1))} style={{ background: T.indigo, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>Next <ArrowRight size={14} /></button>
+            <button onClick={onPrint} style={{ background: T.bg, color: T.text, border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><Printer size={14} /> Print</button>
           </div>
         </div>
       </div>
@@ -473,18 +605,18 @@ function PDFPreview({ payslip, payrun, onClose }) {
         {/* Close bar */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '10px 20px', borderBottom: '1px solid #f0f0f0', background: '#f9fafb'
+          padding: '12px 24px', borderBottom: `1px solid ${T.border}`, background: T.bg
         }}>
-          <span style={{ fontWeight: 700, fontSize: 14 }}>🖨 Payslip Preview</span>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}><Printer size={16} /> Payslip Preview</span>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => window.print()} style={{
-              background: A, color: '#fff', border: 'none',
-              borderRadius: 8, padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer'
-            }}>Print / Download</button>
+              background: T.indigo, color: '#fff', border: 'none',
+              borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+            }}><Printer size={14} /> Print / Download</button>
             <button onClick={onClose} style={{
-              background: '#f3f4f6', border: 'none', borderRadius: 8,
-              padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer'
-            }}>✕</button>
+              background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8, color: T.text,
+              padding: '8px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center'
+            }}><X size={14} /></button>
           </div>
         </div>
 
@@ -579,7 +711,6 @@ function PDFPreview({ payslip, payrun, onClose }) {
 
 /* ── MAIN PAYROLL PAGE (unified — no tabs) ──────── */
 export default function Payroll() {
-  const t = useT()
   const [view, setView] = useState('list')   // 'list' | 'payslips' | 'detail' | 'pdf'
   const [selPayrun, setSelPayrun] = useState(null)
   const [selPayslip, setSelPayslip] = useState(null)
@@ -596,18 +727,18 @@ export default function Payroll() {
   const closeDetail = () => setView('payslips')
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, fontFamily: 'inherit' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, fontFamily: 'inherit' }}>
       <Sidebar />
       <div style={{ flex: 1, marginLeft: 64, padding: '28px 28px 40px', minWidth: 0, overflowX: 'hidden' }}>
 
         {/* ── Page title ── */}
-        <h1 style={{ margin: '0 0 22px', fontSize: 22, fontWeight: 800, color: t.text }}>Payroll</h1>
+        <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 800, color: T.text }}>Payroll</h1>
 
         {/* ── Default view: dashboard stats + payrun list ── */}
         {view === 'list' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             <DashboardTab employees={employees} />
-            <div style={{ borderTop: '2px solid #f3f4f6', paddingTop: 24 }}>
+            <div style={{ borderTop: `2px solid ${T.border}`, paddingTop: 32 }}>
               <PayrunList onOpen={openPayrun} />
             </div>
           </div>

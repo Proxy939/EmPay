@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Mail, Link2, UserPlus, Download, Calendar, MoreHorizontal, Eye } from 'lucide-react'
+import { Search, Mail, Link2, UserPlus, Download, Calendar, MoreHorizontal, Eye, Edit2, Trash2 } from 'lucide-react'
 import Sidebar from '@/components/layout/Sidebar'
 import { useTheme } from '@/lib/theme'
 import api from '@/lib/api'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend,
 } from 'recharts'
@@ -84,6 +85,22 @@ function StatusPill({ status }) {
   )
 }
 
+const exportToCSV = (data, filename) => {
+  if (!data || data.length === 0) return alert('No data to export.')
+  const keys = Object.keys(data[0])
+  const csvContent = [
+    keys.join(','),
+    ...data.map(row => keys.map(k => `"${String(row[k] ?? '').replace(/"/g, '""')}"`).join(','))
+  ].join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 // ─── Top Bar ──────────────────────────────────────────────────────────────────
 function TopBar({ userName, totalEmployees }) {
   const navigate = useNavigate()
@@ -98,59 +115,12 @@ function TopBar({ userName, totalEmployees }) {
       {/* Left: title */}
       <h1 style={{ margin:0, fontSize:22, fontWeight:800, color:T.text }}>Dashboard</h1>
 
-      {/* Right: actions */}
-      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        {/* Search */}
-        <div style={{
-          display:'flex', alignItems:'center', gap:6,
-          background:'#f3f4f6', borderRadius:8, padding:'7px 12px', fontSize:13, color:T.muted,
-        }}>
-          <Search size={14} color={T.muted}/>
-          <span>Quick Search...</span>
-        </div>
-        {/* Icon buttons */}
-        {[Mail, Link2].map((Icon, i) => (
-          <button key={i} style={{
-            width:34, height:34, borderRadius:8, border:`1px solid ${T.border}`,
-            background:T.white, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer',
-          }}>
-            <Icon size={15} color={T.muted}/>
-          </button>
-        ))}
-        {/* Avatar stack — dynamic count */}
-        <div style={{ display:'flex', alignItems:'center' }}>
-          {AVTS.map((c,i) => (
-            <div key={i} style={{
-              width:28, height:28, borderRadius:'50%', background:c,
-              border:'2px solid #fff', marginLeft: i===0 ? 0 : -8, zIndex:AVTS.length-i,
-            }}/>
-          ))}
-          {extra > 0 && (
-            <div style={{
-              marginLeft:-8, background:'#f3f4f6', borderRadius:999,
-              padding:'2px 8px', fontSize:11, fontWeight:700, color:T.muted,
-              border:'2px solid #fff', zIndex:0,
-            }}>+{extra}</div>
-          )}
-        </div>
-        {/* Invite */}
-        <button
-          onClick={() => navigate('/employees/new')}
-          style={{
-            display:'flex', alignItems:'center', gap:6, padding:'7px 14px',
-            border:`1.5px solid ${T.indigo}`, borderRadius:8, background:'transparent',
-            color:T.indigo, fontWeight:600, fontSize:13, cursor:'pointer',
-            fontFamily:'inherit',
-          }}>
-          <UserPlus size={14}/> Invite
-        </button>
-      </div>
     </div>
   )
 }
 
 // ─── Greeting + Date Row ──────────────────────────────────────────────────────
-function GreetingBar({ userName, dateRange, setDateRange }) {
+function GreetingBar({ userName, dateRange, setDateRange, onExport, onAddEmployee, role }) {
   const T = useT()
   const hr = new Date().getHours()
   const greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening'
@@ -168,10 +138,19 @@ function GreetingBar({ userName, dateRange, setDateRange }) {
           <Calendar size={14} color={T.muted}/>
           <span>{dateRange}</span>
         </div>
-        <button style={{
+        {(role === 'ADMIN' || role === 'HR_OFFICER') && (
+          <button onClick={onAddEmployee} style={{
+            display:'flex', alignItems:'center', gap:6, padding:'8px 16px',
+            background:T.indigo, border:'none', borderRadius:8,
+            color:'#fff', fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit',
+          }}>
+            <UserPlus size={14}/> Add Employee
+          </button>
+        )}
+        <button onClick={onExport} style={{
           display:'flex', alignItems:'center', gap:6, padding:'8px 16px',
-          background:T.indigo, border:'none', borderRadius:8,
-          color:'#fff', fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit',
+          background:T.white, border:`1.5px solid ${T.border}`, borderRadius:8,
+          color:T.text, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit',
         }}>
           <Download size={14}/> Export Data
         </button>
@@ -602,7 +581,7 @@ function EmployeesTable({ employees, loading }) {
             {depts.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           {/* Export */}
-          <button style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 14px', background:T.indigo, border:'none', borderRadius:8, color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
+          <button onClick={() => exportToCSV(rows, 'filtered_employees.csv')} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 14px', background:T.indigo, border:'none', borderRadius:8, color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
             <Download size={13}/> Export
           </button>
         </div>
@@ -666,11 +645,26 @@ function EmployeesTable({ employees, loading }) {
                       style={{ width:28, height:28, borderRadius:6, border:`1px solid ${T.border}`, background:T.white, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
                       <Eye size={13} color={T.muted}/>
                     </button>
-                    <button
-                      title="More"
-                      style={{ width:28, height:28, borderRadius:6, border:`1px solid ${T.border}`, background:T.white, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                      <MoreHorizontal size={13} color={T.muted}/>
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          title="More"
+                          style={{ width:28, height:28, borderRadius:6, border:`1px solid ${T.border}`, background:T.white, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                          <MoreHorizontal size={13} color={T.muted}/>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/employees/${emp.id || emp.loginId}`)}>
+                          <Edit2 size={14} className="mr-2" /> Edit Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => alert('Sending email...')}>
+                          <Mail size={14} className="mr-2" /> Send Email
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onClick={() => alert('Delete feature coming soon')}>
+                          <Trash2 size={14} className="mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </td>
               </tr>
@@ -682,11 +676,125 @@ function EmployeesTable({ employees, loading }) {
   )
 }
 
+// ─── ADD EMPLOYEE MODAL ────────────────────────────────────────────────────────
+function AddEmployeeModal({ onClose, onCreated }) {
+  const T = useT()
+  const [form, setForm] = useState({
+    name: '', email: '', phone: '', role: 'EMPLOYEE', department: '', designation: '', joinDate: ''
+  })
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const [successData, setSuccessData] = useState(null)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setErr('')
+    if (!form.name || !form.email || !form.phone) return setErr('Name, Email, and Phone are required')
+    setLoading(true)
+    try {
+      const res = await api.post('/users', form)
+      setSuccessData(res.data)
+      if (onCreated) onCreated()
+    } catch (e) {
+      setErr(e.response?.data?.message || e.message || 'Error creating employee')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const inp = { width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${T.border}`, outline: 'none', background: '#fff', color: T.text, fontSize: 13, marginBottom: 16, boxSizing: 'border-box' }
+  const lbl = { display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600, color: T.text }
+
+  if (successData) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: T.bg, borderRadius: 16, width: '100%', maxWidth: 440, padding: 32, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <UserPlus size={24} />
+          </div>
+          <h3 style={{ margin: '0 0 8px', fontSize: 20, color: T.text }}>Employee Created!</h3>
+          <p style={{ margin: '0 0 24px', fontSize: 14, color: T.muted }}>
+            {successData.emailSent ? 'An email has been sent with their credentials.' : 'Failed to send email. Please share these credentials manually:'}
+          </p>
+          <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, textAlign: 'left', marginBottom: 24, border: `1px solid ${T.border}` }}>
+            <p style={{ margin: '0 0 8px', fontSize: 13 }}><strong style={{ color: T.text }}>Login ID:</strong> <span style={{ fontFamily: 'monospace', color: T.indigo }}>{successData.credentials.loginId}</span></p>
+            <p style={{ margin: 0, fontSize: 13 }}><strong style={{ color: T.text }}>Password:</strong> <span style={{ fontFamily: 'monospace', color: T.indigo }}>{successData.credentials.password}</span></p>
+          </div>
+          <button onClick={onClose} style={{ width: '100%', background: T.indigo, color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Done</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: T.bg, borderRadius: 16, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: T.text, display:'flex', alignItems:'center', gap:8 }}><UserPlus size={18}/> Add New Employee</h3>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, fontSize: 20 }}>&times;</button>
+        </div>
+        <div style={{ padding: 24, overflowY: 'auto' }}>
+          <form id="add-emp-form" onSubmit={submit}>
+            {err && <p style={{ margin: '0 0 16px', color: '#ef4444', fontSize: 13, fontWeight: 600 }}>{err}</p>}
+            
+            <label style={lbl}>Full Name *</label>
+            <input value={form.name} onChange={e=>setForm({...form, name: e.target.value})} placeholder="e.g. Jane Doe" style={inp} autoFocus/>
+            
+            <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>Email *</label>
+                <input type="email" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} placeholder="jane@company.com" style={inp}/>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>Phone *</label>
+                <input type="tel" value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} placeholder="10-digit number" style={inp} maxLength={10}/>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>Role *</label>
+                <select value={form.role} onChange={e=>setForm({...form, role: e.target.value})} style={inp}>
+                  <option value="EMPLOYEE">Employee</option>
+                  <option value="HR_OFFICER">HR Officer</option>
+                  <option value="PAYROLL_OFFICER">Payroll Officer</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>Join Date</label>
+                <input type="date" value={form.joinDate} onChange={e=>setForm({...form, joinDate: e.target.value})} style={inp}/>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>Department</label>
+                <input value={form.department} onChange={e=>setForm({...form, department: e.target.value})} placeholder="e.g. Engineering" style={inp}/>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>Designation</label>
+                <input value={form.designation} onChange={e=>setForm({...form, designation: e.target.value})} placeholder="e.g. Software Engineer" style={inp}/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div style={{ padding: '16px 24px', borderTop: `1px solid ${T.border}`, background: '#fff', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button type="button" onClick={onClose} style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 16px', fontWeight: 600, color: T.text, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+          <button form="add-emp-form" type="submit" disabled={loading} style={{ background: T.indigo, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+            {loading ? 'Creating...' : 'Create Employee'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard() {
   const T = useT()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const userName = user?.name || 'there'
+  const role = user?.role || 'EMPLOYEE'
 
   const [overview,        setOverview]        = useState(null)
   const [costTrend,       setCostTrend]       = useState([])
@@ -695,6 +803,7 @@ export default function Dashboard() {
   const [loading,         setLoading]         = useState(true)
   const [apiError,        setApiError]        = useState(false)
   const [lastUpdated,     setLastUpdated]     = useState(null)
+  const [showAddEmployee, setShowAddEmployee] = useState(false)
   const [dateRange,       setDateRange]       = useState(() => {
     const n = new Date()
     const s = new Date(n.getFullYear(), n.getMonth(), 1)
@@ -788,7 +897,14 @@ export default function Dashboard() {
             </div>
           )}
 
-          <GreetingBar userName={userName} dateRange={dateRange} setDateRange={setDateRange}/>
+          <GreetingBar 
+            userName={userName} 
+            dateRange={dateRange} 
+            setDateRange={setDateRange} 
+            onExport={() => exportToCSV(employees, 'all_employees.csv')}
+            onAddEmployee={() => setShowAddEmployee(true)}
+            role={role}
+          />
 
           {/* Row 1 — Stat Cards */}
           <div style={{ display:'flex', gap:16, marginBottom:20 }}>
@@ -800,11 +916,15 @@ export default function Dashboard() {
           {/* Row 2 — Charts */}
           <div style={{ display:'flex', gap:16, marginBottom:0 }}>
             <EmployeePerformanceCard data={attendanceTrend} loading={loading}/>
-            <PayrollStatsCard        data={costTrend}       loading={loading}/>
+            {(role === 'ADMIN' || role === 'PAYROLL_OFFICER') && (
+              <PayrollStatsCard        data={costTrend}       loading={loading}/>
+            )}
           </div>
 
           {/* Row 3 — Employees Table */}
-          <EmployeesTable employees={employees} loading={loading}/>
+          {(role === 'ADMIN' || role === 'HR_OFFICER') && (
+            <EmployeesTable employees={employees} loading={loading}/>
+          )}
 
           {/* Last updated */}
           {lastUpdated && !loading && (
@@ -814,6 +934,13 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+
+      {showAddEmployee && (
+        <AddEmployeeModal
+          onClose={() => setShowAddEmployee(false)}
+          onCreated={() => fetchAll()}
+        />
+      )}
     </>
   )
 }
