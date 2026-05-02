@@ -9,37 +9,223 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Role enum — 4 distinct access levels in the system
+// ─── Enums ─────────────────────────────────────────────────────────────
+
 enum Role {
-  ADMIN           // Full access, creates other users
-  HR_OFFICER      // Manages profiles, attendance, leaves
-  PAYROLL_OFFICER // Manages payroll, payslips, time-off
-  EMPLOYEE        // View-only personal data, can apply for leave
+  ADMIN
+  HR_OFFICER
+  PAYROLL_OFFICER
+  EMPLOYEE
 }
 
-// User — stores both Admin and Employee accounts
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LATE
+  ON_LEAVE
+}
+
+enum LeaveType {
+  PAID
+  SICK
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─── User (Auth identity) ───────────────────────────────────────────────
+
 model User {
   id                 String   @id @default(cuid())
-  loginId            String   @unique          // Auto-generated: e.g. OIJODO20220001
+  loginId            String   @unique
   name               String
   email              String   @unique
   phone              String   @unique
-  password           String                    // bcrypt hashed
+  password           String
   role               Role     @default(EMPLOYEE)
-  companyName        String                    // Company the user belongs to
-  companyPrefix      String                    // First 2 letters of company name (e.g. "OI")
-  department         String?
-  designation        String?
-  joiningDate        DateTime @default(now())
-  basicSalary        Float    @default(0)      // Monthly base salary in INR
-  mustChangePassword Boolean  @default(false)  // true for system-created accounts (employees)
+  companyName        String
+  companyPrefix      String
+  mustChangePassword Boolean  @default(false)
+  isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  // Relations (added as modules are built)
-  // attendance  Attendance[]
-  // leaves      Leave[]
-  // payrolls    Payroll[]
+  employee           Employee?
 
   @@map("users")
+}
+
+// ─── Employee Profile ───────────────────────────────────────────────────
+
+model Employee {
+  id               String         @id @default(cuid())
+  userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Basic Info
+  firstName        String
+  lastName         String
+  phone            String?
+  personalEmail    String?
+  gender           Gender?
+  maritalStatus    MaritalStatus?
+  nationality      String?
+  dateOfBirth      DateTime?
+  address          String?
+  profilePhoto     String?
+
+  // Work Info
+  department       String?
+  designation      String?
+  companyLocation  String?
+  joinDate         DateTime       @default(now())
+
+  // Manager (self-referential)
+  managerId        String?
+  manager          Employee?      @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates     Employee[]     @relation("ManagerSubordinates")
+
+  // Bio text areas
+  about            String?
+  whatILove        String?
+  interests        String?
+
+  // Bank Details
+  bankAccountNumber String?
+  bankName          String?
+  ifscCode          String?
+  panNumber         String?
+  uanNumber         String?
+
+  // Salary Info — visible ONLY to Admin / Payroll Officer
+  wageAmount        Float          @default(0)
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relations
+  skills           Skill[]
+  certifications   Certification[]
+  attendances      Attendance[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+
+  @@map("employees")
+}
+
+// ─── Skill ──────────────────────────────────────────────────────────────
+
+model Skill {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name        String
+
+  @@map("skills")
+}
+
+// ─── Certification ──────────────────────────────────────────────────────
+
+model Certification {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name        String
+  issuer      String?
+  year        Int?
+
+  @@map("certifications")
+}
+
+// ─── Attendance ─────────────────────────────────────────────────────────
+
+model Attendance {
+  id             String           @id @default(cuid())
+  employeeId     String
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  date           DateTime         @db.Date
+  checkIn        DateTime?
+  breakStart     DateTime?
+  breakEnd       DateTime?
+  checkOut       DateTime?
+  workingHours   Float?
+  extraHours     Float?
+  status         AttendanceStatus @default(PRESENT)
+  notes          String?
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([employeeId, date])
+  @@map("attendances")
+}
+
+// ─── Leave Balance ──────────────────────────────────────────────────────
+
+model LeaveBalance {
+  id             String    @id @default(cuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  leaveType      LeaveType
+  totalDays      Int       @default(0)
+  usedDays       Int       @default(0)
+  year           Int
+
+  @@unique([employeeId, leaveType, year])
+  @@map("leave_balances")
+}
+
+// ─── Leave Request ──────────────────────────────────────────────────────
+
+model LeaveRequest {
+  id             String      @id @default(cuid())
+  employeeId     String
+  employee       Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  leaveType      LeaveType
+  startDate      DateTime    @db.Date
+  endDate        DateTime    @db.Date
+  totalDays      Int
+  reason         String?
+  attachmentUrl  String?
+  status         LeaveStatus @default(PENDING)
+
+  reviewedById   String?
+  reviewedAt     DateTime?
+  rejectionNote  String?
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@map("leave_requests")
+}
+
+// ─── System Config ──────────────────────────────────────────────────────
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_config")
 }

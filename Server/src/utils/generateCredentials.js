@@ -6,35 +6,37 @@ const { prisma } = require('../config/prisma');
 // ─── generateLoginId ──────────────────────────────────────────────────────────
 // Format: [CompanyPrefix2][FirstName2][LastName2][Year][SerialNo4digits]
 // Example: OIJODO20220001
-//   OI   → First 2 letters of "Odoo India"
-//   JO   → First 2 letters of first name "John"
-//   DO   → First 2 letters of last name "Doe"
-//   2022 → Year of joining
-//   0001 → Serial number (how many people joined that year + 1)
+// Serial is read from SystemConfig 'joining_serial_counter' and incremented atomically
 
 const generateLoginId = async (companyPrefix, fullName, joiningYear) => {
-  // Split the full name to get first and last name initials
   const nameParts = fullName.trim().toUpperCase().split(' ');
   const firstName = nameParts[0] || 'XX';
-  const lastName = nameParts[1] || nameParts[0] || 'XX'; // fallback if single name
+  const lastName = nameParts[1] || nameParts[0] || 'XX';
 
-  const firstNameCode = firstName.substring(0, 2);  // e.g. "JO" from "JOHN"
-  const lastNameCode = lastName.substring(0, 2);    // e.g. "DO" from "DOE"
+  const firstNameCode = firstName.substring(0, 2);
+  const lastNameCode = lastName.substring(0, 2);
 
-  // Count how many users already joined in this year to get the serial number
-  const startOfYear = new Date(`${joiningYear}-01-01T00:00:00.000Z`);
-  const endOfYear = new Date(`${joiningYear}-12-31T23:59:59.999Z`);
-
-  const countThisYear = await prisma.user.count({
-    where: {
-      joiningDate: { gte: startOfYear, lte: endOfYear },
-    },
+  // Get current serial from SystemConfig, or start at 1
+  let serial = 1;
+  const config = await prisma.systemConfig.findUnique({
+    where: { key: 'joining_serial_counter' },
   });
 
-  // Serial is count + 1, padded to 4 digits (e.g. 1 → "0001")
-  const serial = String(countThisYear + 1).padStart(4, '0');
+  if (config) {
+    serial = parseInt(config.value, 10);
+  }
 
-  return `${companyPrefix}${firstNameCode}${lastNameCode}${joiningYear}${serial}`;
+  // Build the login ID
+  const loginId = `${companyPrefix}${firstNameCode}${lastNameCode}${joiningYear}${String(serial).padStart(4, '0')}`;
+
+  // Increment the counter for next use
+  await prisma.systemConfig.upsert({
+    where: { key: 'joining_serial_counter' },
+    update: { value: String(serial + 1) },
+    create: { key: 'joining_serial_counter', value: String(serial + 1) },
+  });
+
+  return loginId;
 };
 
 // ─── generatePassword ─────────────────────────────────────────────────────────
