@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AttendanceDetailModal from '@/components/attendance/AttendanceDetailModal'
+import api from '@/lib/api'
 import Sidebar from '@/components/layout/Sidebar'
 
 // ── Google Font ──────────────────────────────────────────────────────────────
@@ -34,18 +35,19 @@ const C = {
 const AVT_COLORS = ['#6C5CE7','#0984e3','#00b894','#e17055','#fdcb6e','#fd79a8','#00b4d8','#a29bfe','#55efc4']
 const avColor = (name) => AVT_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1)||0)) % AVT_COLORS.length]
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_DATA = [
-  { id:1, name:'Arjun Mehta',    loginId:'OIARM E20230001', clockIn:'10:02 AM', clockOut:'07:00 PM', duration:'8h 58m',  extra:'2h 12m', profile:'arjun_profil...',  location:'MG Road, Pune...',        note:'Discussed mutual val...' },
-  { id:2, name:'Priya Sharma',   loginId:'OIPRSH20220042',  clockIn:'09:30 AM', clockOut:'07:12 PM', duration:'8h 18m',  extra:'—',      profile:'priya_profil...',  location:'FC Road, Pune...',        note:'Already lined up for...' },
-  { id:3, name:'Rohit Kulkarni', loginId:'OIROKU20210018',  clockIn:'09:24 AM', clockOut:'05:00 PM', duration:'7h 36m',  extra:'—',      profile:'rohit_profil...',  location:'JM Road, Pune...',        note:'Marci is already doing...' },
-  { id:4, name:'Sneha Patil',    loginId:'OISNPA20230055',  clockIn:'08:56 AM', clockOut:'05:01 PM', duration:'10h 12m', extra:'—',      profile:'sneha_profil...',  location:'Baner Road, Pune...',     note:'Already lined up for...' },
-  { id:5, name:'Vikram Desai',   loginId:'OIVIDE20220031',  clockIn:'08:56 AM', clockOut:'07:00 PM', duration:'10h 12m', extra:'—',      profile:'vikram_profil...', location:'Koregaon Park, Pune...',  note:'Discussed mutual val...' },
-  { id:6, name:'Ananya Joshi',   loginId:'OIANJO20230072',  clockIn:'10:02 AM', clockOut:'05:00 PM', duration:'10h 12m', extra:'—',      profile:'ananya_profil...', location:'Viman Nagar, Pune...',    note:'Rochel has agreed to...' },
-  { id:7, name:'Karan Verma',    loginId:'OIKAVE20210009',  clockIn:'08:56 AM', clockOut:'05:00 PM', duration:'8h 18m',  extra:'—',      profile:'karan_profil...',  location:'Hadapsar, Pune...',       note:'Darcel is pretty good...' },
-  { id:8, name:'Meera Nair',     loginId:'OIMENA20220063',  clockIn:'08:56 AM', clockOut:'05:00 PM', duration:'8h 18m',  extra:'—',      profile:'meera_profil...',  location:'Kothrud, Pune...',        note:'Maryland is a new name...' },
-  { id:9, name:'Dev Kapoor',     loginId:'OIDEKA20230088',  clockIn:'08:56 AM', clockOut:'05:00 PM', duration:'8h 18m',  extra:'—',      profile:'dev_profil...',    location:'Camp, Pune...',           note:'Not heard back from...' },
-]
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function to12hr(t) {
+  if (!t) return '—'
+  const [h, m] = t.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12  = h % 12 || 12
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`
+}
+function fmtH(h) {
+  if (h == null || h <= 0) return '—'
+  const hrs = Math.floor(h), mins = Math.round((h - hrs) * 60)
+  return `${hrs}h${mins > 0 ? ' ' + mins + 'm' : ''}`
+}
 
 // Parse clock time to determine color
 function clockInColor(t) {
@@ -380,11 +382,17 @@ function TRow({ row, even, onClick }) {
 
 // ── Main Attendance Page ──────────────────────────────────────────────────────
 export default function Attendance() {
+  const me = JSON.parse(localStorage.getItem('user') || '{}')
+  const isPrivileged = ['ADMIN','HR_OFFICER','PAYROLL_OFFICER'].includes(me?.role)
+
   const [activeTab,    setActiveTab]    = useState('attendance')
-  const [currentDate,  setCurrentDate]  = useState(new Date(2024, 9, 15)) // Oct 15 2024
+  const [currentDate,  setCurrentDate]  = useState(new Date())
   const [search,       setSearch]       = useState('')
   const [modalOpen,    setModalOpen]    = useState(false)
   const [selectedIdx,  setSelectedIdx]  = useState(0)
+  const [rows,         setRows]         = useState([])
+  const [summary,      setSummary]      = useState({ present:0, halfDay:0, absent:0, total:0, daysPresent:0, leavesCount:0, totalWorkingDays:0 })
+  const [loading,      setLoading]      = useState(true)
 
   const goDate = (delta) => {
     const d = new Date(currentDate)
@@ -392,33 +400,86 @@ export default function Attendance() {
     setCurrentDate(d)
   }
 
-  const filtered = search
-    ? MOCK_DATA.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.loginId.toLowerCase().includes(search.toLowerCase()))
-    : MOCK_DATA
+  // Fetch real data
+  useEffect(() => {
+    setLoading(true)
+    if (isPrivileged) {
+      const dateStr = currentDate.toISOString().slice(0,10)
+      api.get(`/attendance/day?date=${dateStr}`)
+        .then(r => {
+          setSummary(r.data.summary || {})
+          setRows((r.data.attendees || []).map(a => ({
+            id:       a.id,
+            name:     a.employee.name,
+            loginId:  a.employee.loginId || '—',
+            clockIn:  to12hr(a.checkIn),
+            clockOut: to12hr(a.checkOut),
+            duration: fmtH(a.workingHours),
+            extra:    fmtH(a.extraHours),
+            profile:  a.employee.designation || '—',
+            location: a.employee.department  || '—',
+            note:     a.status,
+          })))
+        })
+        .catch(() => setRows([]))
+        .finally(() => setLoading(false))
+    } else {
+      const now = new Date()
+      api.get(`/attendance/me?month=${now.getMonth()+1}&year=${now.getFullYear()}`)
+        .then(r => {
+          setSummary(r.data.summary || {})
+          setRows((r.data.records || []).map(rec => ({
+            id:       rec.id,
+            name:     new Date(rec.date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),
+            loginId:  new Date(rec.date).toLocaleDateString('en-IN',{weekday:'short'}),
+            clockIn:  rec.checkIn  || '—',
+            clockOut: rec.checkOut || '—',
+            duration: fmtH(rec.workingHours),
+            extra:    fmtH(rec.extraHours),
+            profile:  rec.status,
+            location: '—',
+            note:     '—',
+          })))
+        })
+        .catch(() => setRows([]))
+        .finally(() => setLoading(false))
+    }
+  }, [currentDate])
 
-  const summaryCards = [
+  const filtered = search
+    ? rows.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.loginId.toLowerCase().includes(search.toLowerCase()))
+    : rows
+
+  const summaryCards = isPrivileged ? [
     {
       icon: '📋', iconBg: C.blueLight, title: 'Present',
       stats: [
-        { label: 'On time',      value: 265, trend: '+12 vs yesterday', up: true },
-        { label: 'Late clock-in',  value: 62,  trend: '−6 vs yesterday',  up: false },
-        { label: 'Early clock-in', value: 224, trend: '−6 vs yesterday',  up: false },
+        { label: 'Present',  value: summary.present  ?? 0, trend: 'Total checked in', up: true },
+        { label: 'Half Day', value: summary.halfDay  ?? 0, trend: 'Less than 4 hrs',  up: null },
       ],
     },
     {
       icon: '⚠️', iconBg: C.orangeL, title: 'Not Present',
       stats: [
-        { label: 'Absent',      value: 42, trend: '+12 vs yesterday', up: true  },
-        { label: 'No clock-in', value: 36, trend: '−6 vs yesterday',  up: false },
-        { label: 'No clock-out',value: 0,  trend: '0 vs yesterday',   up: null  },
-        { label: 'Invalid',     value: 0,  trend: '0 vs yesterday',   up: null  },
+        { label: 'Absent',  value: summary.absent ?? 0, trend: 'No attendance',    up: false },
+        { label: 'Total',   value: summary.total  ?? 0, trend: 'Attendance records', up: null },
       ],
     },
     {
-      icon: '✈️', iconBg: C.greenL, title: 'Away',
+      icon: '✈️', iconBg: C.greenL, title: 'My Month',
       stats: [
-        { label: 'Day off',  value: 0, trend: '−2 vs yesterday', up: false },
-        { label: 'Time off', value: 0, trend: '−6 vs yesterday', up: false },
+        { label: 'Days Present',   value: summary.daysPresent    ?? 0, trend: 'This month', up: true  },
+        { label: 'Leaves Taken',   value: summary.leavesCount    ?? 0, trend: 'Approved',   up: null  },
+        { label: 'Working Days',   value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri',  up: null  },
+      ],
+    },
+  ] : [
+    {
+      icon: '📋', iconBg: C.blueLight, title: 'My Attendance',
+      stats: [
+        { label: 'Days Present',     value: summary.daysPresent     ?? 0, trend: 'This month', up: true },
+        { label: 'Leaves Taken',     value: summary.leavesCount     ?? 0, trend: 'Approved',   up: null },
+        { label: 'Total Work Days',  value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri',   up: null },
       ],
     },
   ]
@@ -464,28 +525,25 @@ export default function Attendance() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <TH>Employee Name</TH>
+                    <TH>{isPrivileged ? 'Employee Name' : 'Date'}</TH>
                     <TH>Clock-in &amp; Out</TH>
                     <TH>Extra Hours</TH>
-                    <TH>Profile</TH>
-                    <TH>Location</TH>
-                    <TH>Note</TH>
+                    <TH>{isPrivileged ? 'Designation' : 'Status'}</TH>
+                    <TH>{isPrivileged ? 'Department' : ''}</TH>
+                    <TH>{isPrivileged ? 'Status' : ''}</TH>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((row, i) => (
+                  {loading ? (
+                    <tr><td colSpan={6} style={{ padding: '40px 16px', textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading…</td></tr>
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={6} style={{ padding: '40px 16px', textAlign: 'center', color: C.muted, fontSize: 13 }}>No attendance records found.</td></tr>
+                  ) : filtered.map((row, i) => (
                     <TRow
                       key={row.id} row={row} even={i % 2 === 1}
                       onClick={() => { setSelectedIdx(i); setModalOpen(true) }}
                     />
                   ))}
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '40px 16px', textAlign: 'center', color: C.muted, fontSize: 13 }}>
-                        No employees match your search.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
@@ -498,8 +556,9 @@ export default function Attendance() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         employeeIndex={selectedIdx}
-        totalEmployees={MOCK_DATA.length}
-        onNext={() => setSelectedIdx(i => Math.min(MOCK_DATA.length - 1, i + 1))}
+        totalEmployees={rows.length}
+        employee={rows[selectedIdx] ? { name: rows[selectedIdx].name, id: rows[selectedIdx].loginId, role: rows[selectedIdx].profile, phone: '—' } : null}
+        onNext={() => setSelectedIdx(i => Math.min(rows.length - 1, i + 1))}
         onPrev={() => setSelectedIdx(i => Math.max(0, i - 1))}
       />
     </div>

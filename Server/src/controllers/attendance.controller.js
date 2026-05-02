@@ -1,226 +1,189 @@
 // src/controllers/attendance.controller.js
-// Handles check-in, check-out, and attendance queries for the Employees screen
-
 const { prisma } = require('../config/prisma');
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Get midnight UTC for a date (or today)
+function toUTCDay(date) {
+  const d = date ? new Date(date) : new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+// Format a Date to HH:MM string
+function fmtTime(dt) {
+  if (!dt) return null;
+  return new Date(dt).toTimeString().slice(0, 5);
+}
+
+// Count working days (Mon-Fri) in a month
+function countWorkingDays(year, month) {
+  const days = new Date(year, month, 0).getDate(); // total days in month
+  let count = 0;
+  for (let d = 1; d <= days; d++) {
+    const day = new Date(year, month - 1, d).getDay();
+    if (day !== 0 && day !== 6) count++; // skip Sun(0) & Sat(6)
+  }
+  return count;
+}
 
 // ─── CHECK IN ────────────────────────────────────────────────────────────────
 // Route: POST /api/attendance/check-in
 const checkIn = async (req, res, next) => {
   try {
-    // Find employee linked to the logged-in user
     const employee = await prisma.employee.findUnique({
       where: { userId: req.userId },
     });
+    if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
 
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
-    }
+    const today = toUTCDay();
 
-    // Get today's date (midnight, UTC)
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-
-    // Check if already checked in today
     const existing = await prisma.attendance.findUnique({
-      where: {
-        employeeId_date: { employeeId: employee.id, date: today },
-      },
+      where: { employeeId_date: { employeeId: employee.id, date: today } },
     });
+    if (existing) return res.status(409).json({ message: 'Already checked in today' });
 
-    if (existing) {
-      return res.status(409).json({ message: 'Already checked in today' });
-    }
-
-    // Create attendance record with check-in time
     const attendance = await prisma.attendance.create({
-      data: {
-        employeeId: employee.id,
-        date: today,
-        checkIn: new Date(),
-        status: 'PRESENT',
-      },
+      data: { employeeId: employee.id, date: today, checkIn: new Date(), status: 'PRESENT' },
     });
 
-    res.status(201).json({
-      message: 'Checked in successfully',
-      attendance,
-      workStatus: 'CHECKED_IN',
-    });
-  } catch (error) {
-    next(error);
-  }
+    res.status(201).json({ message: 'Checked in successfully', attendance, workStatus: 'CHECKED_IN' });
+  } catch (error) { next(error); }
 };
 
 // ─── CHECK OUT ───────────────────────────────────────────────────────────────
 // Route: POST /api/attendance/check-out
 const checkOut = async (req, res, next) => {
   try {
-    const employee = await prisma.employee.findUnique({
-      where: { userId: req.userId },
-    });
+    const employee = await prisma.employee.findUnique({ where: { userId: req.userId } });
+    if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
 
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
-    }
-
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-
-    // Find today's attendance record
+    const today = toUTCDay();
     const attendance = await prisma.attendance.findUnique({
-      where: {
-        employeeId_date: { employeeId: employee.id, date: today },
-      },
+      where: { employeeId_date: { employeeId: employee.id, date: today } },
     });
 
-    if (!attendance) {
-      return res.status(400).json({ message: 'You have not checked in today' });
-    }
+    if (!attendance) return res.status(400).json({ message: 'You have not checked in today' });
+    if (attendance.checkOut) return res.status(409).json({ message: 'Already checked out today' });
 
-    if (attendance.checkOut) {
-      return res.status(409).json({ message: 'Already checked out today' });
-    }
-
-    // Calculate working hours
     const checkOutTime = new Date();
-    const checkInTime = new Date(attendance.checkIn);
-    let workingMs = checkOutTime - checkInTime;
+    let workingMs = checkOutTime - new Date(attendance.checkIn);
 
-    // Deduct break time if both breakStart and breakEnd exist
+    // Deduct break time if recorded
     if (attendance.breakStart && attendance.breakEnd) {
-      const breakMs = new Date(attendance.breakEnd) - new Date(attendance.breakStart);
-      workingMs -= breakMs;
+      workingMs -= new Date(attendance.breakEnd) - new Date(attendance.breakStart);
     }
 
     const workingHours = +(workingMs / (1000 * 60 * 60)).toFixed(2);
 
-    // Get standard daily hours from config (default 8)
-    const stdConfig = await prisma.systemConfig.findUnique({
-      where: { key: 'standard_daily_hours' },
-    });
+    // Standard hours from config (default 8)
+    const stdConfig = await prisma.systemConfig.findUnique({ where: { key: 'standard_daily_hours' } });
     const standardHours = stdConfig ? parseFloat(stdConfig.value) : 8;
     const extraHours = +(workingHours - standardHours).toFixed(2);
 
-    // Determine status based on hours worked
     let status = 'PRESENT';
-    if (workingHours < 2) {
-      status = 'ABSENT';
-    } else if (workingHours < 4) {
-      status = 'HALF_DAY';
-    }
+    if (workingHours < 2) status = 'ABSENT';
+    else if (workingHours < 4) status = 'HALF_DAY';
 
     const updated = await prisma.attendance.update({
       where: { id: attendance.id },
-      data: {
-        checkOut: checkOutTime,
-        workingHours,
-        extraHours,
-        status,
-      },
+      data: { checkOut: checkOutTime, workingHours, extraHours, status },
     });
 
-    res.json({
-      message: 'Checked out successfully',
-      attendance: updated,
-      workStatus: 'CHECKED_OUT',
-    });
-  } catch (error) {
-    next(error);
-  }
+    res.json({ message: 'Checked out successfully', attendance: updated, workStatus: 'CHECKED_OUT' });
+  } catch (error) { next(error); }
 };
 
-// ─── GET MY ATTENDANCE ───────────────────────────────────────────────────────
-// Route: GET /api/attendance/me?month=5&year=2026
-const getMyAttendance = async (req, res, next) => {
-  try {
-    const employee = await prisma.employee.findUnique({
-      where: { userId: req.userId },
-    });
-
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
-    }
-
-    const month = parseInt(req.query.month) || new Date().getMonth() + 1;
-    const year = parseInt(req.query.year) || new Date().getFullYear();
-
-    const startDate = new Date(Date.UTC(year, month - 1, 1));
-    const endDate = new Date(Date.UTC(year, month, 0)); // last day of month
-
-    const records = await prisma.attendance.findMany({
-      where: {
-        employeeId: employee.id,
-        date: { gte: startDate, lte: endDate },
-      },
-      orderBy: { date: 'asc' },
-    });
-
-    res.json({ attendance: records, month, year });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ─── GET MY STATUS (for the avatar dot) ──────────────────────────────────────
+// ─── GET MY STATUS ───────────────────────────────────────────────────────────
 // Route: GET /api/attendance/my-status
 const getMyStatus = async (req, res, next) => {
   try {
-    const employee = await prisma.employee.findUnique({
-      where: { userId: req.userId },
-    });
+    const employee = await prisma.employee.findUnique({ where: { userId: req.userId } });
+    if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
 
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
-    }
-
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    const today = toUTCDay();
 
     // Check approved leave first
     const onLeave = await prisma.leaveRequest.findFirst({
+      where: { employeeId: employee.id, status: 'APPROVED', startDate: { lte: today }, endDate: { gte: today } },
+    });
+    if (onLeave) return res.json({ workStatus: 'ON_LEAVE' });
+
+    const attendance = await prisma.attendance.findUnique({
+      where: { employeeId_date: { employeeId: employee.id, date: today } },
+    });
+
+    if (!attendance) return res.json({ workStatus: 'ABSENT' });
+    if (attendance.checkIn && !attendance.checkOut) return res.json({ workStatus: 'CHECKED_IN', since: attendance.checkIn });
+    if (attendance.checkIn && attendance.checkOut) return res.json({ workStatus: 'CHECKED_OUT', attendance });
+
+    res.json({ workStatus: 'ABSENT' });
+  } catch (error) { next(error); }
+};
+
+// ─── GET MY ATTENDANCE (monthly) ─────────────────────────────────────────────
+// Route: GET /api/attendance/me?month=5&year=2026
+// Returns records + summary stats for the employee view
+const getMyAttendance = async (req, res, next) => {
+  try {
+    const employee = await prisma.employee.findUnique({ where: { userId: req.userId } });
+    if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
+
+    const month = parseInt(req.query.month) || new Date().getMonth() + 1;
+    const year  = parseInt(req.query.year)  || new Date().getFullYear();
+
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate   = new Date(Date.UTC(year, month, 0));
+
+    // Get attendance records for the month
+    const records = await prisma.attendance.findMany({
+      where: { employeeId: employee.id, date: { gte: startDate, lte: endDate } },
+      orderBy: { date: 'asc' },
+    });
+
+    // Count approved leaves in this month
+    const leaves = await prisma.leaveRequest.count({
       where: {
         employeeId: employee.id,
         status: 'APPROVED',
-        startDate: { lte: today },
-        endDate: { gte: today },
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
       },
     });
 
-    if (onLeave) {
-      return res.json({ workStatus: 'ON_LEAVE' });
-    }
+    const daysPresent    = records.filter(r => r.status === 'PRESENT' || r.status === 'HALF_DAY').length;
+    const totalWorkingDays = countWorkingDays(year, month);
 
-    // Check today's attendance
-    const attendance = await prisma.attendance.findUnique({
-      where: {
-        employeeId_date: { employeeId: employee.id, date: today },
-      },
+    // Format records for the table
+    const formatted = records.map(r => ({
+      id:           r.id,
+      date:         r.date,
+      checkIn:      fmtTime(r.checkIn),
+      checkOut:     fmtTime(r.checkOut),
+      workingHours: r.workingHours,
+      extraHours:   r.extraHours,
+      status:       r.status,
+    }));
+
+    res.json({
+      records: formatted,
+      summary: { daysPresent, leavesCount: leaves, totalWorkingDays },
+      month,
+      year,
     });
-
-    if (attendance) {
-      if (attendance.checkIn && !attendance.checkOut) {
-        return res.json({ workStatus: 'CHECKED_IN', since: attendance.checkIn });
-      }
-      if (attendance.checkIn && attendance.checkOut) {
-        return res.json({ workStatus: 'CHECKED_OUT', attendance });
-      }
-    }
-
-    res.json({ workStatus: 'ABSENT' });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };
 
-// ─── GET TODAY'S PRESENT LIST ────────────────────────────────────────────────
-// Route: GET /api/attendance/today  (Admin, HR, Payroll only)
-const getTodayPresent = async (req, res, next) => {
+// ─── GET DAY ATTENDANCE (Admin/HR/Payroll) ────────────────────────────────────
+// Route: GET /api/attendance/day?date=2026-05-02
+// Returns all employees' attendance for any given date
+const getDayAttendance = async (req, res, next) => {
   try {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    // Use provided date or today
+    const date = req.query.date ? toUTCDay(req.query.date) : toUTCDay();
 
     const records = await prisma.attendance.findMany({
-      where: { date: today },
+      where: { date },
       include: {
         employee: {
           select: {
@@ -230,22 +193,50 @@ const getTodayPresent = async (req, res, next) => {
             department: true,
             designation: true,
             profilePhoto: true,
+            user: { select: { loginId: true, email: true } },
           },
         },
       },
       orderBy: { checkIn: 'asc' },
     });
 
-    res.json({ date: today, attendees: records });
-  } catch (error) {
-    next(error);
-  }
+    // Count stats for the day
+    const present  = records.filter(r => r.status === 'PRESENT').length;
+    const halfDay  = records.filter(r => r.status === 'HALF_DAY').length;
+    const absent   = records.filter(r => r.status === 'ABSENT').length;
+
+    // Format records
+    const formatted = records.map(r => ({
+      id:           r.id,
+      employee: {
+        id:         r.employee.id,
+        name:       `${r.employee.firstName} ${r.employee.lastName}`,
+        loginId:    r.employee.user?.loginId,
+        department: r.employee.department,
+        designation:r.employee.designation,
+        photo:      r.employee.profilePhoto,
+      },
+      checkIn:      fmtTime(r.checkIn),
+      checkOut:     fmtTime(r.checkOut),
+      workingHours: r.workingHours,
+      extraHours:   r.extraHours,
+      status:       r.status,
+    }));
+
+    res.json({
+      date,
+      attendees: formatted,
+      summary: { present, halfDay, absent, total: records.length },
+    });
+  } catch (error) { next(error); }
 };
 
 module.exports = {
   checkIn,
   checkOut,
-  getMyAttendance,
   getMyStatus,
-  getTodayPresent,
+  getMyAttendance,
+  getDayAttendance,
+  // Keep old name as alias so existing routes still work
+  getTodayPresent: getDayAttendance,
 };

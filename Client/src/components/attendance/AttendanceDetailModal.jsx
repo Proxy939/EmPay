@@ -346,16 +346,18 @@ function Legend() {
 export default function AttendanceDetailModal({
   isOpen, onClose,
   employeeIndex = 0, totalEmployees = 56,
+  employee: employeeProp = null,  // real data from parent
   onNext, onPrev,
 }) {
-  const [localIndex, setLocalIndex]         = useState(employeeIndex)
+  const [localIndex, setLocalIndex]             = useState(employeeIndex)
   const [overtimeApproved, setOvertimeApproved] = useState(false)
-  const [searchQuery, setSearchQuery]       = useState('')
-  const [currentMonth, setCurrentMonth]    = useState({ month: 9, year: 2025 }) // Oct 2025 (0-indexed)
+  const [searchQuery, setSearchQuery]           = useState('')
+  const [currentMonth, setCurrentMonth]         = useState({ month: new Date().getMonth(), year: new Date().getFullYear() })
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-  const employee = MOCK_EMPLOYEES[localIndex % MOCK_EMPLOYEES.length]
+  // Use real employee data if provided, fall back to mock
+  const employee = employeeProp || MOCK_EMPLOYEES[localIndex % MOCK_EMPLOYEES.length]
   const days     = makeDays(overtimeApproved)
 
   const handlePrev = () => setLocalIndex(i => Math.max(0, i - 1))
