@@ -36,7 +36,6 @@ http://localhost:5173/login  (Login Screen)
         ↓  after auth
 http://localhost:5173/dashboard  (HRMS App)
 ```
-
 ## Default Admin Credentials
 
 - **Login ID:** `OIJODO20260001`
