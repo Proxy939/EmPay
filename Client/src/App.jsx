@@ -1,13 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Dashboard from './pages/Dashboard'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
-// Placeholder pages (to be built)
-const Dashboard = () => (
-  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080b14', color: '#a78bfa', fontFamily: 'Inter, sans-serif' }}>
+// Placeholder — will be built as backend modules are done
+const ComingSoon = ({ title }) => (
+  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'oklch(0.10 0.015 265)', color: 'oklch(0.58 0.22 292)', fontFamily: 'Geist Variable, sans-serif' }}>
     <div style={{ textAlign: 'center' }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>Dashboard</h1>
-      <p style={{ color: '#4b5563' }}>Coming soon…</p>
+      <h1 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '6px' }}>{title}</h1>
+      <p style={{ color: 'oklch(0.58 0 0)', fontSize: '0.875rem' }}>Coming soon…</p>
     </div>
   </div>
 )
@@ -16,16 +18,22 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Auth routes */}
+        {/* Public routes */}
         <Route path="/login"  element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* App routes (protected — to be gated later) */}
-        <Route path="/dashboard" element={<Dashboard />} />
+        {/* Protected routes */}
+        <Route path="/dashboard"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/attendance" element={<ProtectedRoute><ComingSoon title="Attendance" /></ProtectedRoute>} />
+        <Route path="/time-off"   element={<ProtectedRoute><ComingSoon title="Time Off" /></ProtectedRoute>} />
+        <Route path="/payroll"    element={<ProtectedRoute><ComingSoon title="Payroll" /></ProtectedRoute>} />
+        <Route path="/reports"    element={<ProtectedRoute><ComingSoon title="Reports" /></ProtectedRoute>} />
+        <Route path="/settings"   element={<ProtectedRoute><ComingSoon title="Settings" /></ProtectedRoute>} />
+        <Route path="/profile"    element={<ProtectedRoute><ComingSoon title="My Profile" /></ProtectedRoute>} />
 
-        {/* Default redirect */}
-        <Route path="/"  element={<Navigate to="/login" replace />} />
-        <Route path="*"  element={<Navigate to="/login" replace />} />
+        {/* Default redirects */}
+        <Route path="/"   element={<Navigate to="/dashboard" replace />} />
+        <Route path="*"   element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   )
