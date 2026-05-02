@@ -5,6 +5,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import NewEmployeeDialog from '@/components/employees/NewEmployeeDialog'
 import api from '@/lib/api'
 
 // ── Work Status Config ────────────────────────────────────────────────────────
@@ -162,10 +163,11 @@ function AttendanceWidget() {
 // ── Dashboard Page ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [employees, setEmployees] = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [search, setSearch]       = useState('')
-  const [error, setError]         = useState(null)
+  const [employees, setEmployees]       = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [search, setSearch]             = useState('')
+  const [error, setError]               = useState(null)
+  const [newEmpOpen, setNewEmpOpen]     = useState(false)
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const role = user?.role || 'EMPLOYEE'
@@ -222,7 +224,7 @@ export default function Dashboard() {
 
       {/* Add new — Admin / HR only */}
       {canAddEmployee && (
-        <Button size="sm" className="h-8 gap-1.5 text-xs font-medium">
+        <Button size="sm" className="h-8 gap-1.5 text-xs font-medium" onClick={() => setNewEmpOpen(true)}>
           <UserPlus className="size-3.5" /> New Employee
         </Button>
       )}
@@ -288,12 +290,19 @@ export default function Dashboard() {
             {search ? `No employees match "${search}".` : 'Add your first employee to get started.'}
           </p>
           {canAddEmployee && !search && (
-            <Button className="mt-5 gap-2" size="sm">
+            <Button className="mt-5 gap-2" size="sm" onClick={() => setNewEmpOpen(true)}>
               <UserPlus className="size-4" /> Add First Employee
             </Button>
           )}
         </div>
       )}
+
+      {/* New Employee Dialog */}
+      <NewEmployeeDialog
+        open={newEmpOpen}
+        onOpenChange={setNewEmpOpen}
+        onCreated={() => fetchEmployees(search)}
+      />
     </AppLayout>
   )
 }
