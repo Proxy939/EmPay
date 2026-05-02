@@ -416,9 +416,10 @@ export default function Attendance() {
         .then(r => {
           setSummary(r.data.summary || {})
           setRows((r.data.attendees || []).map(a => ({
-            id:       a.id,
-            name:     a.employee.name,
-            loginId:  a.employee.loginId || '—',
+            id:         a.id,
+            employeeId: a.employee.id,
+            name:       a.employee.name,
+            loginId:    a.employee.loginId || '—',
             clockIn:  to12hr(a.checkIn),
             clockOut: to12hr(a.checkOut),
             duration: fmtH(a.workingHours),
@@ -575,6 +576,7 @@ export default function Attendance() {
         employeeIndex={selectedIdx}
         totalEmployees={rows.length}
         employee={rows[selectedIdx] ? { name: rows[selectedIdx].name, id: rows[selectedIdx].loginId, role: rows[selectedIdx].profile, phone: '—' } : null}
+        employeeId={rows[selectedIdx]?.employeeId}
         onNext={() => setSelectedIdx(i => Math.min(rows.length - 1, i + 1))}
         onPrev={() => setSelectedIdx(i => Math.max(0, i - 1))}
       />

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import EmployeeProfile from './pages/EmployeeProfile'
 import MyProfile from './pages/MyProfile'
@@ -22,7 +23,7 @@ const ComingSoon = ({ title }) => (
   </div>
 )
 
-// Redirects to external URL (landing page runs on a separate Next.js port)
+// Redirect to external landing page
 const ExternalRedirect = ({ to }) => {
   useEffect(() => { window.location.replace(to) }, [to])
   return null
@@ -50,9 +51,9 @@ function App() {
         {/* Default redirects */}
         <Route path="/employees-list" element={<ProtectedRoute><ComingSoon title="Employees Grid" /></ProtectedRoute>} />
         <Route path="/help"    element={<ProtectedRoute><ComingSoon title="Help" /></ProtectedRoute>} />
-        {/* Root → Landing page (Next.js dev server, port 4028) */}
-        <Route path="/"        element={<ExternalRedirect to="http://localhost:4028" />} />
-        <Route path="*"        element={<Navigate to="/login" replace />} />
+        {/* Root → Next.js landing page (port 4028) → Get Started → 5173/login */}
+        <Route path="/"  element={<ExternalRedirect to="http://localhost:4028" />} />
+        <Route path="*"  element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   )
