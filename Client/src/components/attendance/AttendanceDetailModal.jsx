@@ -4,34 +4,34 @@ import api from '@/lib/api'
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const C = {
-  teal:    '#00b4d8', tealBg:  '#e0f7fc',
-  green:   '#22c55e', greenBg: '#dcfce7',
-  orange:  '#f97316', orangeBg:'#fff7ed',
-  red:     '#ef4444', redBg:   '#fee2e2',
-  yellow:  '#fbbf24', yellowBg:'#fef3c7',
-  gray:    '#9ca3af', grayBg:  '#f3f4f6',
-  text:    '#1a1d23', muted:   '#6b7280',
-  border:  '#e5e7eb', white:   '#ffffff',
-  nav:     '#1a1d23',
+  teal: '#00b4d8', tealBg: '#e0f7fc',
+  green: '#22c55e', greenBg: '#dcfce7',
+  orange: '#f97316', orangeBg: '#fff7ed',
+  red: '#ef4444', redBg: '#fee2e2',
+  yellow: '#fbbf24', yellowBg: '#fef3c7',
+  gray: '#9ca3af', grayBg: '#f3f4f6',
+  text: '#1a1d23', muted: '#6b7280',
+  border: '#e5e7eb', white: '#ffffff',
+  nav: '#1a1d23',
 }
 
 // ── Mock Employees ─────────────────────────────────────────────────────────────
 const MOCK_EMPLOYEES = [
-  { name: 'Arjun Mehta',    id: 'OIARM E20230001', role: 'HR Officer',       phone: '+91 98765 43210' },
-  { name: 'Priya Sharma',   id: 'OIPRSH20220042',  role: 'Employee',         phone: '+91 87654 32109' },
-  { name: 'Rohit Kulkarni', id: 'OIROKU20210018',  role: 'Payroll Officer',  phone: '+91 76543 21098' },
-  { name: 'Sneha Patil',    id: 'OISNPA20230055',  role: 'Employee',         phone: '+91 65432 10987' },
-  { name: 'Vikram Desai',   id: 'OIVIDE20220031',  role: 'HR Officer',       phone: '+91 54321 09876' },
+  { name: 'Arjun Mehta', id: 'OIARM E20230001', role: 'HR Officer', phone: '+91 98765 43210' },
+  { name: 'Priya Sharma', id: 'OIPRSH20220042', role: 'Employee', phone: '+91 87654 32109' },
+  { name: 'Rohit Kulkarni', id: 'OIROKU20210018', role: 'Payroll Officer', phone: '+91 76543 21098' },
+  { name: 'Sneha Patil', id: 'OISNPA20230055', role: 'Employee', phone: '+91 65432 10987' },
+  { name: 'Vikram Desai', id: 'OIVIDE20220031', role: 'HR Officer', phone: '+91 54321 09876' },
 ]
 
 // ── Timeline constants ────────────────────────────────────────────────────────
 // Total span: 09:00 → 23:59 = 899 minutes
 const TIMELINE_START = 9 * 60        // 540 min
-const TIMELINE_END   = 23 * 60 + 59 // 1439 min
-const TOTAL_MINS     = TIMELINE_END - TIMELINE_START // 899
+const TIMELINE_END = 23 * 60 + 59 // 1439 min
+const TOTAL_MINS = TIMELINE_END - TIMELINE_START // 899
 
 const toMin = (h, m) => h * 60 + m
-const pct   = (mins) => `${(mins / TOTAL_MINS) * 100}%`
+const pct = (mins) => `${(mins / TOTAL_MINS) * 100}%`
 
 const fmtMin = (totalMin) => {
   const h = Math.floor(totalMin / 60)
@@ -49,7 +49,7 @@ function to12(t) {
   if (!t) return '—'
   const [h, m] = t.split(':').map(Number)
   const ampm = h >= 12 ? 'PM' : 'AM'
-  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`
 }
 function fmtDuration(h) {
   if (!h || h <= 0) return '—'
@@ -57,7 +57,7 @@ function fmtDuration(h) {
   return `${hrs}h${mins > 0 ? ' ' + mins + 'm' : ''}`
 }
 function buildSegments(checkIn, checkOut, stdHours = 8) {
-  const inMin  = timeStrToMin(checkIn)
+  const inMin = timeStrToMin(checkIn)
   const outMin = timeStrToMin(checkOut)
   if (!inMin) return []
   const end = outMin || inMin + stdHours * 60
@@ -73,8 +73,8 @@ function buildSegments(checkIn, checkOut, stdHours = 8) {
 }
 function recordToDay(rec) {
   const dateObj = new Date(rec.date)
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const isToday = new Date().toDateString() === dateObj.toDateString()
   const label = isToday
     ? 'Today'
@@ -82,33 +82,33 @@ function recordToDay(rec) {
   const dayOff = rec.status === 'ON_LEAVE'
   const absent = rec.status === 'ABSENT' && !rec.checkIn
   return {
-    id:               rec.id,
+    id: rec.id,
     label,
-    clockIn:          rec.checkIn  ? to12(rec.checkIn)  : '—',
-    clockOut:         rec.checkOut ? to12(rec.checkOut) : '—',
-    duration:         fmtDuration(rec.workingHours),
-    segments:         dayOff || absent ? [] : buildSegments(rec.checkIn, rec.checkOut),
+    clockIn: rec.checkIn ? to12(rec.checkIn) : '—',
+    clockOut: rec.checkOut ? to12(rec.checkOut) : '—',
+    duration: fmtDuration(rec.workingHours),
+    segments: dayOff || absent ? [] : buildSegments(rec.checkIn, rec.checkOut),
     dayOff,
     absent,
     overtimeApproval: (rec.extraHours > 0) && !rec.overtimeApproved,
-    approved:         rec.overtimeApproved || (!rec.extraHours && !dayOff && !absent && !!rec.checkIn),
-    extraHours:       rec.extraHours,
-    _recordId:        rec.id,
+    approved: rec.overtimeApproved || (!rec.extraHours && !dayOff && !absent && !!rec.checkIn),
+    extraHours: rec.extraHours,
+    _recordId: rec.id,
   }
 }
 
 const SEG_STYLE = {
-  working:  { bg: C.teal,   label: 'Working time' },
-  break:    { bg: C.gray,   label: 'Break'        },
-  overtime: { bg: C.orange, label: 'Over time'    },
-  late:     { bg: C.yellow, label: 'Late'         },
+  working: { bg: C.teal, label: 'Working time' },
+  break: { bg: C.gray, label: 'Break' },
+  overtime: { bg: C.orange, label: 'Over time' },
+  late: { bg: C.yellow, label: 'Late' },
 }
 
-const TIME_MARKERS = ['09:00','11:00','13:00','15:00','17:00','19:00','21:00','23:59']
+const TIME_MARKERS = ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00', '23:59']
 
 // ── Avatar ─────────────────────────────────────────────────────────────────────
-const AVT_COLORS = ['#6C5CE7','#0984e3','#00b894','#e17055','#fdcb6e','#fd79a8','#00b4d8','#a29bfe']
-const avColor = (name) => AVT_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1)||0)) % AVT_COLORS.length]
+const AVT_COLORS = ['#6C5CE7', '#0984e3', '#00b894', '#e17055', '#fdcb6e', '#fd79a8', '#00b4d8', '#a29bfe']
+const avColor = (name) => AVT_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % AVT_COLORS.length]
 
 function Avatar({ name, size = 80 }) {
   const parts = name.trim().split(' ')
@@ -127,15 +127,15 @@ function Avatar({ name, size = 80 }) {
 // ── Timeline Segment ──────────────────────────────────────────────────────────
 function TimelineSegment({ seg }) {
   const [hovered, setHovered] = useState(false)
-  const style  = SEG_STYLE[seg.type]
-  const mins   = seg.end - seg.start
-  const width  = pct(mins)
-  const startH = Math.floor(seg.start / 60).toString().padStart(2,'0')
-  const startM = (seg.start % 60).toString().padStart(2,'0')
-  const endH   = Math.floor(seg.end / 60).toString().padStart(2,'0')
-  const endM   = (seg.end % 60).toString().padStart(2,'0')
-  const label  = style.label
-  const dur    = fmtMin(mins)
+  const style = SEG_STYLE[seg.type]
+  const mins = seg.end - seg.start
+  const width = pct(mins)
+  const startH = Math.floor(seg.start / 60).toString().padStart(2, '0')
+  const startM = (seg.start % 60).toString().padStart(2, '0')
+  const endH = Math.floor(seg.end / 60).toString().padStart(2, '0')
+  const endM = (seg.end % 60).toString().padStart(2, '0')
+  const label = style.label
+  const dur = fmtMin(mins)
 
   return (
     <div
@@ -322,10 +322,10 @@ function MonthlyStats({ stats }) {
 // ── Legend ────────────────────────────────────────────────────────────────────
 function Legend() {
   const items = [
-    { color: C.teal,   label: 'Working time' },
-    { color: C.gray,   label: 'Break'        },
-    { color: C.orange, label: 'Over time'    },
-    { color: C.yellow, label: 'Late'         },
+    { color: C.teal, label: 'Working time' },
+    { color: C.gray, label: 'Break' },
+    { color: C.orange, label: 'Over time' },
+    { color: C.yellow, label: 'Late' },
   ]
   return (
     <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -353,14 +353,14 @@ export default function AttendanceDetailModal({
 }) {
   const navigate = useNavigate()
   const [overtimeStates, setOvertimeStates] = useState({}) // recordId -> true/false
-  const [searchQuery,    setSearchQuery]    = useState('')
-  const [statusFilter,   setStatusFilter]   = useState('')
-  const [currentMonth,   setCurrentMonth]   = useState({ month: new Date().getMonth(), year: new Date().getFullYear() })
-  const [records,        setRecords]        = useState([])
-  const [summary,        setSummary]        = useState({})
-  const [loading,        setLoading]        = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [currentMonth, setCurrentMonth] = useState({ month: new Date().getMonth(), year: new Date().getFullYear() })
+  const [records, setRecords] = useState([])
+  const [summary, setSummary] = useState({})
+  const [loading, setLoading] = useState(false)
 
-  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
   const employee = employeeProp || MOCK_EMPLOYEES[0]
   const employeeId = employeeIdProp || employee?.id
@@ -375,10 +375,10 @@ export default function AttendanceDetailModal({
         setSummary(r.data.summary || {})
         // Seed overtimeStates from fetched data
         const states = {}
-        ;(r.data.records || []).forEach(rec => { states[rec.id] = rec.overtimeApproved })
+          ; (r.data.records || []).forEach(rec => { states[rec.id] = rec.overtimeApproved })
         setOvertimeStates(states)
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [isOpen, employeeId, currentMonth.month, currentMonth.year])
 
@@ -387,11 +387,11 @@ export default function AttendanceDetailModal({
     try {
       await api.patch(`/attendance/${recordId}/overtime`, { approved: approve })
       setOvertimeStates(s => ({ ...s, [recordId]: approve }))
-    } catch {}
+    } catch { }
   }
 
-  const prevMonth = () => setCurrentMonth(m => m.month === 0  ? { month: 11, year: m.year - 1 } : { month: m.month - 1, year: m.year })
-  const nextMonth = () => setCurrentMonth(m => m.month === 11 ? { month: 0,  year: m.year + 1 } : { month: m.month + 1, year: m.year })
+  const prevMonth = () => setCurrentMonth(m => m.month === 0 ? { month: 11, year: m.year - 1 } : { month: m.month - 1, year: m.year })
+  const nextMonth = () => setCurrentMonth(m => m.month === 11 ? { month: 0, year: m.year + 1 } : { month: m.month + 1, year: m.year })
 
   // Build day entries from real records, apply overtime state overrides
   const days = records
@@ -408,20 +408,20 @@ export default function AttendanceDetailModal({
       const matchSearch = !searchQuery || d.label.toLowerCase().includes(searchQuery.toLowerCase())
       const matchStatus = !statusFilter ||
         (statusFilter === 'Present' && !d.dayOff && !d.absent && d.clockIn !== '—') ||
-        (statusFilter === 'Absent'  && d.absent) ||
-        (statusFilter === 'Leave'   && d.dayOff) ||
+        (statusFilter === 'Absent' && d.absent) ||
+        (statusFilter === 'Leave' && d.dayOff) ||
         (statusFilter === 'Overtime' && (d.extraHours > 0))
       return matchSearch && matchStatus
     })
 
   // Real computed stats
   const stats = [
-    { label: 'Days Present',   value: summary.daysPresent    ?? 0, trend: 'This month', up: null },
-    { label: 'Overtime days',  value: summary.overtimeCount  ?? 0, trend: 'With extra hours', up: null },
-    { label: 'Leaves',         value: summary.leavesCount    ?? 0, trend: 'Approved leaves', up: null },
-    { label: 'No clock-out',   value: records.filter(r => r.checkIn && !r.checkOut).length, trend: 'Missing checkout', up: null },
-    { label: 'Absent',         value: records.filter(r => r.status === 'ABSENT').length, trend: 'No show', up: null },
-    { label: 'Working Days',   value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri', up: null },
+    { label: 'Days Present', value: summary.daysPresent ?? 0, trend: 'This month', up: null },
+    { label: 'Overtime days', value: summary.overtimeCount ?? 0, trend: 'With extra hours', up: null },
+    { label: 'Leaves', value: summary.leavesCount ?? 0, trend: 'Approved leaves', up: null },
+    { label: 'No clock-out', value: records.filter(r => r.checkIn && !r.checkOut).length, trend: 'Missing checkout', up: null },
+    { label: 'Absent', value: records.filter(r => r.status === 'ABSENT').length, trend: 'No show', up: null },
+    { label: 'Working Days', value: summary.totalWorkingDays ?? 0, trend: 'Mon–Fri', up: null },
   ]
 
   if (!isOpen) return null
@@ -591,7 +591,7 @@ export default function AttendanceDetailModal({
               key={day.id}
               day={day}
               onApprove={() => handleOvertime(day._recordId, true)}
-              onReject={()  => handleOvertime(day._recordId, false)}
+              onReject={() => handleOvertime(day._recordId, false)}
             />
           ))}
         </div>

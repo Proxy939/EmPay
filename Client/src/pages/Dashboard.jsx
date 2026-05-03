@@ -818,13 +818,22 @@ export default function Dashboard() {
     const year  = new Date().getFullYear()
     const month = new Date().getMonth() + 1
 
-    Promise.all([
+    const canViewPayroll = role === 'ADMIN' || role === 'PAYROLL_OFFICER'
+
+    const requests = [
       api.get('/dashboard/overview'),
       api.get(`/dashboard/attendance-trend?month=${month}&year=${year}`),
-      api.get(`/dashboard/employer-cost-trend?year=${year}`),
       api.get('/employees'),
-    ])
-    .then(([ov, at, ct, em]) => {
+    ]
+
+    if (canViewPayroll) {
+      requests.push(api.get(`/dashboard/employer-cost-trend?year=${year}`))
+    }
+    Promise.all(requests)
+    .then((responses) => {
+      const [ov, at, em, ct] = canViewPayroll
+        ? [responses[0], responses[1], responses[2], responses[3]]
+        : [responses[0], responses[1], responses[2], null]
       // Overview — shape: { data: { totalEmployees, ... } }
       setOverview(ov.data?.data || ov.data || null)
 
@@ -832,7 +841,7 @@ export default function Dashboard() {
       setAttendanceTrend(at.data?.data || at.data || [])
 
       // Cost trend — shape: { data: [...] }
-      setCostTrend(ct.data?.data || ct.data || [])
+      setCostTrend(ct?.data?.data || ct?.data || [])
 
       // Employees — shape: { employees: [...] }
       const empArr = em.data?.employees || em.data?.data || em.data || []

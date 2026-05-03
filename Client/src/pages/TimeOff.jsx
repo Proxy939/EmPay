@@ -53,7 +53,7 @@ function BalanceCards({ leaves = [] }){
   const cards=[
     {type:'Paid Time Off', val: Math.max(0, 24 - usedPaid).toString().padStart(2,'0'), sub:'Days Available', color:'#0284c7', bg:'#e0f2fe'},
     {type:'Sick Leave',    val: Math.max(0, 7 - usedSick).toString().padStart(2,'0'), sub:'Days Available', color:'#7c3aed', bg:'#f3e8ff'},
-    {type:'Unpaid Leave',  val:'Γê₧',  sub:'No Limit',       color:'#b45309', bg:'#fef3c7'},
+    {type:'Unpaid Leave',  val:'∞',  sub:'No Limit',       color:'#b45309', bg:'#fef3c7'},
   ]
   return(
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:22}}>
