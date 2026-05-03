@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Search, Zap, IndianRupee, Building2, AlertTriangle, ArrowRight, Printer, CheckCircle2, ChevronRight, X, FileText } from 'lucide-react'
 import Sidebar from '@/components/layout/Sidebar'
+import api from '../lib/api'
 
 // Static light-mode theme tokens (shadcn-aligned)
 const T = {
@@ -71,7 +72,7 @@ function CreatePayrunModal({ onClose, onCreated }) {
     if (!name || !start || !end) return setErr('All fields are required')
     setLoading(true)
     try {
-      const api = (await import('../lib/api')).default
+
       await api.post('/payroll', { name, periodStart: start, periodEnd: end })
       onCreated()
       onClose()
@@ -130,8 +131,7 @@ function DashboardTab() {
   })
 
   useEffect(() => {
-    import('../lib/api').then(m => {
-      const api = m.default
+    {
       const year = new Date().getFullYear()
       Promise.all([
         api.get(`/dashboard/employer-cost-trend?year=${year}`),
@@ -169,7 +169,7 @@ function DashboardTab() {
           summary: { mp: currC.grossPayroll, mpDiff, tc: currC.employerCost, tcDiff }
         })
       }).catch(console.error)
-    })
+    }
   }, [])
 
   return (
@@ -212,7 +212,7 @@ function PayrunList({ onOpen }) {
   const [showCreate, setShowCreate] = useState(false)
   
   const fetchPayruns = () => {
-    import('../lib/api').then(m => m.default.get('/payroll')).then(r => {
+    api.get('/payroll').then(r => {
       setPayruns(r.data.data || [])
     }).catch(console.error)
   }
@@ -296,7 +296,7 @@ function PayslipList({ payrun, onView, onBack }) {
 
   const fetchData = async () => {
     try {
-      const api = (await import('../lib/api')).default
+
       const [prRes, psRes] = await Promise.all([
         api.get(`/payroll/${payrun.id}`),
         api.get(`/payroll/${payrun.id}/payslips`)
@@ -311,7 +311,7 @@ function PayslipList({ payrun, onView, onBack }) {
   const handleGenerate = async () => {
     setLoadingAction(true)
     try {
-      const api = (await import('../lib/api')).default
+
       await api.post(`/payroll/${payrun.id}/generate`)
       await fetchData()
     } catch(e) { alert(e.response?.data?.message || 'Error generating payslips') }
@@ -321,7 +321,7 @@ function PayslipList({ payrun, onView, onBack }) {
   const handleValidate = async () => {
     setLoadingAction(true)
     try {
-      const api = (await import('../lib/api')).default
+
       await api.patch(`/payroll/${payrun.id}/validate`)
       await fetchData()
     } catch(e) { alert(e.response?.data?.message || 'Error validating payrun') }
@@ -704,7 +704,7 @@ export default function Payroll() {
   const [employees, setEmployees] = useState([])
 
   // Fetch real employees for warnings
-  useState(() => { import('../lib/api').then(m => m.default.get('/employees').then(r => setEmployees(r.data.employees || [])).catch(() => { })) }, [])
+  useState(() => { api.get('/employees').then(r => setEmployees(r.data.employees || [])).catch(() => { }) }, [])
 
   const openPayrun = pr => { setSelPayrun(pr); setView('payslips') }
   const openPayslip = ps => { setSelPayslip(ps); setView('detail') }
