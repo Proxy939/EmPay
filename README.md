@@ -140,6 +140,9 @@ npm run dev
 - **Login ID:** `OIJODO20260001`
 - **Password:** `Admin@123`
 
+- **2nd Login ID:** `jayendrarajput514@gmail.com`
+- **Password:** `ayush16`
+
 ---
 
 ## 📄 License
