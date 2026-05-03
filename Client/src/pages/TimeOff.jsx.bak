@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+﻿import React, { useState, useMemo } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
 import api from '@/lib/api'
 import { PalmtreeIcon, Stethoscope, FileText, Eye, Check, X, Plus, Search, Pencil, Trash2 } from 'lucide-react'
@@ -160,8 +160,7 @@ function LeaveTable({rows,isAdmin,canApprove,onView,onApprove,onReject,rejectId,
 function EmployeeView({onNew,onView,leaves,setLeaves}){
   const [filter,setFilter]=useState('All')
   const filters=['All','Pending','Approved','Rejected']
-  // /leaves/me already returns only this user's leaves — no name filter needed
-  const myLeaves=leaves
+  const myLeaves=leaves.filter(r=>r.emp==='Arjun Mehta') // logged-in employee
   const shown=filter==='All'?myLeaves:myLeaves.filter(r=>r.status===filter)
   const [rejectId,setRejectId]=useState(null)
   const [rejectReason,setRejectReason]=useState('')
@@ -604,15 +603,14 @@ function DetailModal({leave,onClose,canApprove,onApprove}){
   )
 }
 
-/* ── Role helpers — derived from stored auth, not a UI switcher ── */
+/* ΓöÇΓöÇ ROLE CONFIG ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+const ROLES=['Employee','HR Officer','Admin','Payroll Officer']
 const canApproveRole=r=>r==='Admin'||r==='HR Officer'
 const isAdminRole=r=>r!=='Employee'
 
-/* ── MAIN TIME OFF PAGE ─────────────────────────── */
+/* ΓöÇΓöÇ MAIN TIME OFF PAGE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 export default function TimeOff(){
-  const _u = JSON.parse(localStorage.getItem('user')||'{}')
-  const _rm = {ADMIN:'Admin',HR_OFFICER:'HR Officer',PAYROLL_OFFICER:'Payroll Officer',EMPLOYEE:'Employee'}
-  const role = _rm[_u?.role] || 'Employee'
+  const [role,setRole]=useState('Employee')
   const [leaves,setLeaves]=useState([])
   const [reqOpen,setReqOpen]=useState(false)
   const [allocOpen,setAllocOpen]=useState(false)
@@ -670,14 +668,13 @@ export default function TimeOff(){
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       
-      // Use real logged-in user identity
-      const me = JSON.parse(localStorage.getItem('user')||'{}')
+      // Update local state to reflect the new submission
       const newLeave = {
         id: res.data.data.id,
-        emp: me.name || `${me.firstName||''} ${me.lastName||''}`.trim() || 'Me',
-        empId: me.loginId || '',
+        emp: 'Arjun Mehta', // Currently hardcoded to the logged in user for demo
+        empId: 'OIARM E20230001',
         type: data.ltype,
-        start: data.from,
+        start: data.from, // e.g. '2025-10-28'
         end: data.to,
         days: res.data.data.totalDays,
         note: data.note,
@@ -695,7 +692,15 @@ export default function TimeOff(){
     <div style={{display:'flex',minHeight:'100vh',background:T.bg,fontFamily:'inherit',colorScheme:'light'}}>
       <Sidebar/>
       <div style={{flex:1,marginLeft:64,padding:'28px 28px 48px',minWidth:0}}>
-        {/* Role is read from auth — no switcher exposed */}
+        {/* Role switcher */}
+        <div style={{display:'flex',justifyContent:'flex-end',marginBottom:18}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,background:T.card,borderRadius:10,padding:'6px 14px',border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <span style={{fontSize:12,color:T.muted,fontWeight:500}}>Viewing as:</span>
+            <select value={role} onChange={e=>setRole(e.target.value)} style={{border:'none',outline:'none',fontWeight:700,fontSize:13,color:A,background:'transparent',cursor:'pointer',fontFamily:'inherit'}}>
+              {ROLES.map(r=><option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+        </div>
 
         {/* Main content */}
         {!isAdminRole(role)

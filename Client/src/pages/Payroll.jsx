@@ -38,25 +38,15 @@ const ST = {
 /* ── Tiny shared components ────────────────────── */
 const Badge = ({ s }) => { const [bg, c] = ST[s] || ['#f1f5f9', '#475569']; return <span style={pill(bg, c)}>{s}</span> }
 
-const Toggle = ({ val, set }) => (
-  <div style={{ display: 'flex', border: `1px solid ${T.border}`, borderRadius: 8, overflow: 'hidden', fontSize: 11, background: T.card, padding: 2 }}>
-    {['annually', 'monthly'].map(m => (
-      <button key={m} onClick={() => set(m)} style={{
-        padding: '4px 14px', border: 'none', cursor: 'pointer', fontWeight: 600, borderRadius: 6,
-        background: val === m ? T.indigo : 'transparent', color: val === m ? '#fff' : T.muted, textTransform: 'capitalize', transition: 'all .15s'
-      }}>{m}</button>
-    ))}
-  </div>
-)
 
-const ChartCard = ({ title, data, color, mode, onMode }) => (
+
+const ChartCard = ({ title, data, color }) => (
   <div style={{ background: T.card, borderRadius: T.radius, boxShadow: T.shadow, padding: '24px', flex: 1, minWidth: 0, border: `1px solid ${T.border}` }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
       <span style={{ fontWeight: 700, fontSize: 15, color: T.text }}>{title}</span>
-      <Toggle val={mode} set={onMode} />
     </div>
     <ResponsiveContainer width="100%" height={160}>
-      <BarChart data={data[mode]} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false} />
         <XAxis dataKey="m" tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} dy={10} />
         <YAxis tick={{ fontSize: 11, fill: T.muted }} axisLine={false} tickLine={false} />
@@ -131,12 +121,11 @@ function CreatePayrunModal({ onClose, onCreated }) {
 /* ── DASHBOARD TAB ───────────────────────────────── */
 function DashboardTab() {
   const card = { background: T.card, borderRadius: T.radius, boxShadow: T.shadow, padding: '24px', border: `1px solid ${T.border}` }
-  const [cm, setCm] = useState('annually'), [em, setEm] = useState('annually')
   const [showAI, setShowAI] = useState(false)
   
   const [data, setData] = useState({
-    cost: { annually: [], monthly: [] },
-    count: { annually: [], monthly: [] },
+    cost: [],
+    count: [],
     summary: { mp: 0, mpDiff: 0, tc: 0, tcDiff: 0 }
   })
 
@@ -166,24 +155,8 @@ function DashboardTab() {
         const currCount = annCount[cmIdx]?.v || 0
 
         setData({
-          cost: {
-            annually: annCost,
-            monthly: [
-              { m: 'Wk 1', v: currC.employerCost * 0.25 },
-              { m: 'Wk 2', v: currC.employerCost * 0.25 },
-              { m: 'Wk 3', v: currC.employerCost * 0.25 },
-              { m: 'Wk 4', v: currC.employerCost * 0.25 }
-            ]
-          },
-          count: {
-            annually: annCount,
-            monthly: [
-              { m: 'Wk 1', v: currCount },
-              { m: 'Wk 2', v: currCount },
-              { m: 'Wk 3', v: currCount },
-              { m: 'Wk 4', v: currCount }
-            ]
-          },
+          cost: annCost,
+          count: annCount,
           summary: { mp: currC.grossPayroll, mpDiff, tc: currC.employerCost, tcDiff }
         })
       }).catch(console.error)
@@ -214,8 +187,8 @@ function DashboardTab() {
 
       {/* Charts */}
       <div style={{ display: 'flex', gap: 16 }}>
-        <ChartCard title="Employer Cost" data={data.cost} color={T.indigo} mode={cm} onMode={setCm} />
-        <ChartCard title="Employee Count" data={data.count} color={T.cyan} mode={em} onMode={setEm} />
+        <ChartCard title="Employer Cost" data={data.cost} color={T.indigo} />
+        <ChartCard title="Employee Count" data={data.count} color={T.cyan} />
       </div>
     </div>
   )
@@ -432,20 +405,17 @@ function PayslipList({ payrun, onView, onBack }) {
 }
 
 /* ── PAYSLIP DETAIL MODAL ───────────────────────── */
-const EARNINGS = [
-  ['Basic Salary', 25000], ['House Rent Allowance', 12500], ['Standard Allowance', 4167],
-  ['Performance Bonus', 2082.5], ['Leave Travel Allowance', 2082.5], ['Fixed Allowance', 4168],
-]
-const DEDUCTIONS = [
-  ['PF Employee', -3000], ['PF Employer', -3000], ['Professional Tax', -200],
-]
 const STEPS = ['New Payslip', 'Compute', 'Validate', 'Done']
 
 function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
   const [step, setStep] = useState(1)
-  const gross = EARNINGS.reduce((s, [, v]) => s + v, 0)
-  const totalDed = DEDUCTIONS.reduce((s, [, v]) => s + v, 0)
-  const net = gross + totalDed
+  const earnings = payslip.components?.filter(c => c.type === 'EARNING') || []
+  const deductions = payslip.components?.filter(c => c.type === 'DEDUCTION') || []
+  const gross = payslip.grossAmount || 0
+  const net = payslip.netAmount || 0
+  const empName = payslip.employee ? `${payslip.employee.firstName} ${payslip.employee.lastName}` : 'Employee'
+  const empCode = payslip.employee?.user?.loginId || payslip.employee?.loginId || 'EMP'
+  const formatPeriod = (s, e) => `${new Date(s).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{
@@ -491,12 +461,12 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
           }}>
             <div>
               <p style={{ margin: 0, fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Employee</p>
-              <p style={{ margin: '4px 0 0', fontWeight: 700, fontSize: 16 }}>{payslip.name}</p>
-              <p style={{ margin: 2, fontSize: 12, color: '#6b7280' }}>{payslip.code}</p>
+              <p style={{ margin: '4px 0 0', fontWeight: 700, fontSize: 16 }}>{empName}</p>
+              <p style={{ margin: 2, fontSize: 12, color: '#6b7280' }}>{empCode}</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
               {[['Payrun', payrun.name], ['Salary Structure', 'Regular Pay'],
-              ['Period', '01 Oct to 31 Oct'], ['Status', payslip.status]].map(([l, v]) => (
+              ['Period', formatPeriod(payrun.periodStart, payrun.periodEnd)], ['Status', payslip.status]].map(([l, v]) => (
                 <div key={l}>
                   <span style={{ color: '#9ca3af', fontWeight: 600 }}>{l}: </span>
                   <span style={{ color: l === 'Payrun' ? T : l === 'Status' ? A : '#374151', fontWeight: l === 'Payrun' || l === 'Status' ? 700 : 400 }}>{v}</span>
@@ -517,8 +487,8 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
                   ))}
                 </tr></thead>
                 <tbody>
-                  {[['Attendance', '20.00 (5 working days/week)', inr(45833.33)],
-                  ['Paid Time Off', '2.00 (2 Paid leaves/month)', inr(4166.67)]].map(([t, d, a]) => (
+                  {[['Attendance', `${(payslip.workedDays ?? 0).toFixed(2)}`, inr((payslip.grossAmount ?? 0) * (payslip.workedDays ?? 0) / (((payslip.workedDays ?? 0) + (payslip.paidLeaveDays ?? 0)) || 1))],
+                  ['Paid Time Off', `${(payslip.paidLeaveDays ?? 0).toFixed(2)}`, inr((payslip.grossAmount ?? 0) * (payslip.paidLeaveDays ?? 0) / (((payslip.workedDays ?? 0) + (payslip.paidLeaveDays ?? 0)) || 1))]].map(([t, d, a]) => (
                     <tr key={t} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '9px 12px', color: '#374151' }}>{t}</td>
                       <td style={{ padding: '9px 12px', color: '#6b7280', fontSize: 11 }}>{d}</td>
@@ -527,8 +497,8 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
                   ))}
                   <tr style={{ background: '#f9fafb', fontWeight: 700 }}>
                     <td style={{ padding: '9px 12px' }}>Total</td>
-                    <td style={{ padding: '9px 12px' }}>22.00</td>
-                    <td style={{ padding: '9px 12px', color: A }}>{inr(50000)}</td>
+                    <td style={{ padding: '9px 12px' }}>{((payslip.workedDays ?? 0) + (payslip.paidLeaveDays ?? 0)).toFixed(2)}</td>
+                    <td style={{ padding: '9px 12px', color: A }}>{inr(payslip.grossAmount ?? 0)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -547,11 +517,11 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
                   ))}
                 </tr></thead>
                 <tbody>
-                  {EARNINGS.map(([name, val]) => (
-                    <tr key={name} style={{ borderBottom: '1px solid #f9f9f9' }}>
-                      <td style={{ padding: '7px 12px', color: '#374151' }}>{name}</td>
+                  {earnings.map((c) => (
+                    <tr key={c.name} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                      <td style={{ padding: '7px 12px', color: '#374151' }}>{c.name}</td>
                       <td style={{ padding: '7px 12px', color: '#9ca3af' }}>100</td>
-                      <td style={{ padding: '7px 12px', fontWeight: 500 }}>{inr(val)}</td>
+                      <td style={{ padding: '7px 12px', fontWeight: 500 }}>{inr(c.amount)}</td>
                     </tr>
                   ))}
                   <tr style={{ background: '#eef2ff', fontWeight: 800 }}>
@@ -559,11 +529,11 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
                     <td style={{ padding: '9px 12px' }}></td>
                     <td style={{ padding: '9px 12px', color: A }}>{inr(gross)}</td>
                   </tr>
-                  {DEDUCTIONS.map(([name, val]) => (
-                    <tr key={name} style={{ borderBottom: '1px solid #f9f9f9' }}>
-                      <td style={{ padding: '7px 12px', color: '#374151' }}>{name}</td>
+                  {deductions.map((c) => (
+                    <tr key={c.name} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                      <td style={{ padding: '7px 12px', color: '#374151' }}>{c.name}</td>
                       <td style={{ padding: '7px 12px', color: '#9ca3af' }}>100</td>
-                      <td style={{ padding: '7px 12px', fontWeight: 500, color: R }}>{inr(val)}</td>
+                      <td style={{ padding: '7px 12px', fontWeight: 500, color: R }}>-{inr(Math.abs(c.amount))}</td>
                     </tr>
                   ))}
                   <tr style={{ background: '#f0fdf4', fontWeight: 800 }}>
@@ -590,9 +560,13 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
 
 /* ── PDF PREVIEW ────────────────────────────────── */
 function PDFPreview({ payslip, payrun, onClose }) {
-  const gross = EARNINGS.reduce((s, [, v]) => s + v, 0)
-  const totalDed = DEDUCTIONS.reduce((s, [, v]) => s + v, 0)
-  const net = gross + totalDed
+  const earnings = payslip.components?.filter(c => c.type === 'EARNING') || []
+  const deductions = payslip.components?.filter(c => c.type === 'DEDUCTION') || []
+  const gross = payslip.grossAmount || 0
+  const net = payslip.netAmount || 0
+  const empName = payslip.employee ? `${payslip.employee.firstName} ${payslip.employee.lastName}` : 'Employee'
+  const empCode = payslip.employee?.user?.loginId || payslip.employee?.loginId || 'EMP'
+  const formatPeriodFull = (s, e) => `${new Date(s).toLocaleDateString('en-GB')} – ${new Date(e).toLocaleDateString('en-GB')}`
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1100, display: 'flex',
@@ -630,7 +604,7 @@ function PDFPreview({ payslip, payrun, onClose }) {
             }}>E</div>
             <div>
               <p style={{ margin: 0, fontWeight: 800, fontSize: 18, color: A }}>EmPay HRMS</p>
-              <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>Salary Slip for the month of Oct 2025</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>Salary Slip for {payrun.name}</p>
             </div>
           </div>
 
@@ -640,11 +614,11 @@ function PDFPreview({ payslip, payrun, onClose }) {
             background: '#f8f0ff', padding: '14px 16px', borderRadius: 10, marginBottom: 16
           }}>
             {[
-              ['Employee Name', payslip.name], ['PAN', 'ABCDE1234F'],
-              ['Employee Code', payslip.code], ['UAN', '1234567890'],
-              ['Department', 'Engineering'], ['Bank A/C', 'XXXX4321'],
-              ['Location', 'Pune'], ['Pay Period', '01/10 – 31/10/2025'],
-              ['Date of Joining', '20/06/2022'], ['Pay Date', '02/11/2025'],
+              ['Employee Name', empName], ['PAN', payslip.employee?.panNumber||'—'],
+              ['Employee Code', empCode], ['UAN', '—'],
+              ['Department', payslip.employee?.department||'—'], ['Bank A/C', payslip.employee?.bankAccount||'—'],
+              ['Location', payslip.employee?.location||'—'], ['Pay Period', formatPeriodFull(payrun.periodStart, payrun.periodEnd)],
+              ['Date of Joining', payslip.employee?.dateOfJoining?new Date(payslip.employee.dateOfJoining).toLocaleDateString('en-GB'):'—'], ['Pay Date', new Date().toLocaleDateString('en-GB')],
             ].map(([l, v]) => (
               <div key={l} style={{ display: 'flex', gap: 4 }}>
                 <span style={{ color: '#6b7280', minWidth: 110 }}>{l} :</span>
@@ -660,7 +634,7 @@ function PDFPreview({ payslip, payrun, onClose }) {
               <th style={{ padding: '7px 10px', textAlign: 'right', color: '#6b7280' }}>Number of Days</th>
             </tr></thead>
             <tbody>
-              {[['Attendance', '20 days'], ['Total', '22 days']].map(([l, v]) => (
+              {[['Attendance', `${(payslip.workedDays ?? 0).toFixed(2)} days`], ['Total', `${((payslip.workedDays ?? 0) + (payslip.paidLeaveDays ?? 0)).toFixed(2)} days`]].map(([l, v]) => (
                 <tr key={l} style={{ borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '6px 10px' }}>{l}</td>
                   <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>{v}</td>
@@ -678,14 +652,15 @@ function PDFPreview({ payslip, payrun, onClose }) {
               <th style={{ padding: '7px 10px', textAlign: 'right', color: '#6b7280' }}>Amount</th>
             </tr></thead>
             <tbody>
-              {EARNINGS.map(([e, ev], i) => {
-                const [d, dv] = DEDUCTIONS[i] || []
+              {Array.from({length: Math.max(earnings.length, deductions.length)}).map((_, i) => {
+                const e = earnings[i] || null
+                const d = deductions[i] || null
                 return (
-                  <tr key={e} style={{ borderBottom: '1px solid #f9f9f9' }}>
-                    <td style={{ padding: '6px 10px' }}>{e}</td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right' }}>{inr(ev)}</td>
-                    <td style={{ padding: '6px 10px', color: R }}>{d || ''}</td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right', color: R }}>{d ? inr(dv) : ''}</td>
+                  <tr key={i} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                    <td style={{ padding: '6px 10px' }}>{e?.name || ''}</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right' }}>{e ? inr(e.amount) : ''}</td>
+                    <td style={{ padding: '6px 10px', color: R }}>{d?.name || ''}</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', color: R }}>{d ? `-${inr(Math.abs(d.amount))}` : ''}</td>
                   </tr>
                 )
               })}
@@ -700,7 +675,6 @@ function PDFPreview({ payslip, payrun, onClose }) {
             <span style={{ fontSize: 13, fontWeight: 600 }}>Total Net Payable (Gross – Deductions)</span>
             <div style={{ textAlign: 'right' }}>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{inr(net)}</p>
-              <p style={{ margin: 0, fontSize: 11, opacity: .85 }}>Forty-Three Thousand Eight Hundred Only</p>
             </div>
           </div>
         </div>

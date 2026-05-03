@@ -94,18 +94,24 @@ const createUser = async (req, res, next) => {
     });
 
     // 11. Send welcome email with credentials (non-blocking — failure won't break user creation)
-    sendWelcomeEmail({
-      to:          email,
-      name:        firstName,
-      loginId,
-      password:    plainPassword,
-      companyName: admin.companyName,
-    }).catch(err => console.error('[Mailer] Background email error:', err.message));
+    let emailSent = false
+    try {
+      await sendWelcomeEmail({
+        to:          email,
+        name:        firstName,
+        loginId,
+        password:    plainPassword,
+        companyName: admin.companyName,
+      })
+      emailSent = true
+    } catch (err) {
+      console.error('[Mailer] Background email error:', err.message)
+    }
 
     // ⚠️ plainPassword returned ONCE — share manually if email fails
     res.status(201).json({
       message:     'User created successfully',
-      emailSent:   false, // We return false to ensure the UI shows the fallback credentials immediately
+      emailSent,
       credentials: { loginId, password: plainPassword },
       user,
     });

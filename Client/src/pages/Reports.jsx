@@ -18,33 +18,7 @@ const inr=v=>'₹'+Number(v).toLocaleString('en-IN',{minimumFractionDigits:2,max
 const YEARS=[2025,2024,2023,2022]
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December']
 
-/* ── mock employees (fallback) ─── */
-const MOCK_EMPS=[
-  {id:'1',name:'Arjun Mehta',   code:'OIARM E20230001',dept:'Engineering', designation:'Senior Developer',  join:'20 June 2022'},
-  {id:'2',name:'Priya Sharma',  code:'OIPRSH20220042', dept:'HR',           designation:'HR Executive',      join:'15 March 2022'},
-  {id:'3',name:'Rohit Kulkarni',code:'OIROKU20210018', dept:'Finance',      designation:'Finance Analyst',   join:'10 Jan 2021'},
-  {id:'4',name:'Sneha Patil',   code:'OISNPA20230055', dept:'Engineering',  designation:'Frontend Developer',join:'01 Aug 2023'},
-  {id:'5',name:'Vikram Desai',  code:'OIVIDE20220031', dept:'Operations',   designation:'Operations Lead',   join:'12 May 2022'},
-  {id:'6',name:'Ananya Joshi',  code:'OIANJO20230072', dept:'Marketing',    designation:'Brand Manager',     join:'07 Nov 2023'},
-]
 
-/* ── salary data ─── */
-const EARNINGS=[
-  ['Basic Salary',25000],['House Rent Allowance',12500],['Standard Allowance',4167],
-  ['Performance Bonus',2082.5],['Leave Travel Allowance',2082.5],['Fixed Allowance',4168],
-]
-const DEDUCTIONS=[
-  ['PF Employee (6%)',-3000],['PF Employer (6%)',-3000],['Professional Tax',-200],['TDS Deduction',0],
-]
-const GROSS=EARNINGS.reduce((s,[,v])=>s+v,0)
-const TOTAL_DED=DEDUCTIONS.reduce((s,[,v])=>s+v,0)
-const NET=GROSS+TOTAL_DED
-
-const MONTHLY_DATA=MONTHS.map((m,i)=>({
-  month:m, working:[22,20,23,22,21,22,23,21,22,20,22,21][i],
-  leaves:2, gross:GROSS, ded:Math.abs(TOTAL_DED), net:NET
-}))
-const YR_TOTAL={working:259,leaves:24,gross:GROSS*12,ded:Math.abs(TOTAL_DED)*12,net:NET*12}
 
 /* ── Shimmer ─── */
 function Shimmer({h=18,w='100%',mb=10,r=8}){
@@ -79,7 +53,7 @@ function FormCard({employees,onGenerate,onReset,loading,generated,selEmp,setSelE
     if(!selEmp||!selYear){setErr('Please select both an employee and a year');return}
     setErr(''); onGenerate()
   }
-  const empList=employees.length>0?employees:MOCK_EMPS
+  const empList=employees
   const TF={width:'100%',padding:'9px 12px',borderRadius:8,border:`1px solid ${T.border}`,
     fontSize:13,outline:'none',color:T.text,background:'#fff',boxSizing:'border-box',
     fontFamily:'inherit',appearance:'none',cursor:'pointer',boxShadow:'0 1px 2px rgba(0,0,0,0.05)'}
@@ -153,7 +127,7 @@ function FormCard({employees,onGenerate,onReset,loading,generated,selEmp,setSelE
 
         {/* Summary chips */}
         {generated&&selEmp&&selYear&&(()=>{
-          const emp=empList.find(e=>(e.id||e.code)===selEmp)||empList[0]
+          const emp=empList.find(e=>(e.id||e.code)===selEmp)
           const empName=emp?.name||`${emp?.firstName} ${emp?.lastName}`||'—'
           const dept=emp?.dept||emp?.department||'—'
           return(
@@ -173,14 +147,15 @@ function FormCard({employees,onGenerate,onReset,loading,generated,selEmp,setSelE
 }
 
 /* ── PRINT PREVIEW ──────────────────────────────── */
-function PrintPreview({emp,year}){
+function PrintPreview({data}){
+  const { employee: emp, year, components, deductions, monthly, yearly } = data
   const TH={padding:'9px 14px',textAlign:'left',color:T.muted,fontWeight:600,fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em'}
   const TD={padding:'10px 14px',fontSize:13,borderBottom:`1px solid ${T.border}`,color:T.text}
   const TDr={...TD,color:R}
-  const empName=emp?.name||`${emp?.firstName||''} ${emp?.lastName||''}`.trim()||'—'
-  const dept=emp?.dept||emp?.department||'Engineering'
-  const desig=emp?.designation||'Senior Developer'
-  const join=emp?.join||'20 June 2022'
+  const empName=emp.name||`${emp?.firstName||''} ${emp?.lastName||''}`.trim()||'—'
+  const dept=emp.department||'Engineering'
+  const desig=emp.designation||'Senior Developer'
+  const join=emp.joinDate ? new Date(emp.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'
   const today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
 
   return(
@@ -224,18 +199,18 @@ function PrintPreview({emp,year}){
               <td colSpan={3} style={{padding:'10px 14px',fontWeight:600,fontSize:12,color:T.text,
                 borderBottom:`1px solid ${T.border}`}}>Earnings</td>
             </tr>
-            {EARNINGS.map(([name,mo])=>(
-              <tr key={name}>
-                <td style={TD}>{name}</td>
-                <td style={TD}>{inr(mo)}</td>
-                <td style={TD}>{inr(mo*12)}</td>
+            {components.map(c=>(
+              <tr key={c.name}>
+                <td style={TD}>{c.name}</td>
+                <td style={TD}>{inr(c.monthlyAvg)}</td>
+                <td style={TD}>{inr(c.yearlyAmount)}</td>
               </tr>
             ))}
             {/* Gross row */}
             <tr>
               <td style={{...TD,fontWeight:600,color:T.text,borderBottom:`1px solid ${T.border}`}}>Gross Earnings</td>
-              <td style={{...TD,fontWeight:600,color:T.text,borderBottom:`1px solid ${T.border}`}}>{inr(GROSS)}</td>
-              <td style={{...TD,fontWeight:600,color:T.text,borderBottom:`1px solid ${T.border}`}}>{inr(GROSS*12)}</td>
+              <td style={{...TD,fontWeight:600,color:T.text,borderBottom:`1px solid ${T.border}`}}>{inr(yearly.totalGross / 12)}</td>
+              <td style={{...TD,fontWeight:600,color:T.text,borderBottom:`1px solid ${T.border}`}}>{inr(yearly.totalGross)}</td>
             </tr>
 
             {/* Deductions header */}
@@ -243,25 +218,25 @@ function PrintPreview({emp,year}){
               <td colSpan={3} style={{padding:'10px 14px',fontWeight:600,fontSize:12,color:R,
                 borderBottom:`1px solid ${T.border}`}}>Deductions</td>
             </tr>
-            {DEDUCTIONS.map(([name,mo])=>(
-              <tr key={name}>
-                <td style={TD}>{name}</td>
-                <td style={mo<0?TDr:TD}>{mo<=0?inr(mo):inr(mo)}</td>
-                <td style={mo<0?TDr:TD}>{mo<=0?inr(mo*12):inr(mo*12)}</td>
+            {deductions.map(c=>(
+              <tr key={c.name}>
+                <td style={TD}>{c.name}</td>
+                <td style={c.yearlyAmount>0?TDr:TD}>-{inr(c.yearlyAmount/12)}</td>
+                <td style={c.yearlyAmount>0?TDr:TD}>-{inr(c.yearlyAmount)}</td>
               </tr>
             ))}
             {/* Total deductions row */}
             <tr>
               <td style={{...TD,fontWeight:600,color:R}}>Total Deductions</td>
-              <td style={{...TD,fontWeight:600,color:R}}>{inr(TOTAL_DED)}</td>
-              <td style={{...TD,fontWeight:600,color:R}}>{inr(TOTAL_DED*12)}</td>
+              <td style={{...TD,fontWeight:600,color:R}}>-{inr(yearly.totalDeductions/12)}</td>
+              <td style={{...TD,fontWeight:600,color:R}}>-{inr(yearly.totalDeductions)}</td>
             </tr>
 
             {/* Net salary */}
             <tr style={{background:A}}>
               <td style={{padding:'12px 14px',fontWeight:700,fontSize:14,color:'#fff',borderRadius:'0 0 0 6px'}}>Net Salary</td>
-              <td style={{padding:'12px 14px',fontWeight:700,fontSize:14,color:'#fff'}}>{inr(NET)}</td>
-              <td style={{padding:'12px 14px',fontWeight:700,fontSize:14,color:'#fff',borderRadius:'0 0 6px 0'}}>{inr(NET*12)}</td>
+              <td style={{padding:'12px 14px',fontWeight:700,fontSize:14,color:'#fff'}}>{inr(yearly.totalNet/12)}</td>
+              <td style={{padding:'12px 14px',fontWeight:700,fontSize:14,color:'#fff',borderRadius:'0 0 6px 0'}}>{inr(yearly.totalNet)}</td>
             </tr>
           </tbody>
         </table>
@@ -281,24 +256,24 @@ function PrintPreview({emp,year}){
                 </tr>
               </thead>
               <tbody>
-                {MONTHLY_DATA.map((r,i)=>(
+                {monthly.map((r)=>(
                   <tr key={r.month} style={{borderBottom:`1px solid ${T.border}`}}>
                     <td style={{padding:'8px 10px',fontWeight:500,color:T.text}}>{r.month}</td>
-                    <td style={{padding:'8px 10px',color:T.muted}}>{r.working}</td>
-                    <td style={{padding:'8px 10px',color:T.muted}}>{r.leaves}</td>
-                    <td style={{padding:'8px 10px',color:T.text}}>{inr(r.gross)}</td>
-                    <td style={{padding:'8px 10px',color:R}}>-{inr(r.ded)}</td>
-                    <td style={{padding:'8px 10px',fontWeight:600,color:T.text}}>{inr(r.net)}</td>
+                    <td style={{padding:'8px 10px',color:T.muted}}>{r.workedDays}</td>
+                    <td style={{padding:'8px 10px',color:T.muted}}>{r.paidLeaveDays}</td>
+                    <td style={{padding:'8px 10px',color:T.text}}>{inr(r.grossAmount)}</td>
+                    <td style={{padding:'8px 10px',color:R}}>-{inr(r.totalDeductions)}</td>
+                    <td style={{padding:'8px 10px',fontWeight:600,color:T.text}}>{inr(r.netAmount)}</td>
                   </tr>
                 ))}
                 {/* Yearly total */}
                 <tr style={{background:'#f8fafc',fontWeight:600}}>
                   <td style={{padding:'12px 10px',color:T.text}}>Yearly Total</td>
-                  <td style={{padding:'12px 10px',color:T.text}}>{YR_TOTAL.working}</td>
-                  <td style={{padding:'12px 10px',color:T.text}}>{YR_TOTAL.leaves}</td>
-                  <td style={{padding:'12px 10px',color:T.text}}>{inr(YR_TOTAL.gross)}</td>
-                  <td style={{padding:'12px 10px',color:R}}>-{inr(YR_TOTAL.ded)}</td>
-                  <td style={{padding:'12px 10px',color:T.text}}>{inr(YR_TOTAL.net)}</td>
+                  <td style={{padding:'12px 10px',color:T.text}}>{yearly.totalWorkedDays}</td>
+                  <td style={{padding:'12px 10px',color:T.text}}>—</td>
+                  <td style={{padding:'12px 10px',color:T.text}}>{inr(yearly.totalGross)}</td>
+                  <td style={{padding:'12px 10px',color:R}}>-{inr(yearly.totalDeductions)}</td>
+                  <td style={{padding:'12px 10px',color:T.text}}>{inr(yearly.totalNet)}</td>
                 </tr>
               </tbody>
             </table>
@@ -345,7 +320,7 @@ const PRINT_CSS=`
 export default function Reports(){
   const [selEmp,setSelEmp]=useState(null)
   const [selYear,setSelYear]=useState(null)
-  const [generated,setGenerated]=useState(false)
+  const [reportData,setReportData]=useState(null)
   const [loading,setLoading]=useState(false)
   const [employees,setEmployees]=useState([])
 
@@ -357,22 +332,28 @@ export default function Reports(){
         name:`${e.firstName} ${e.lastName}`,
         code:e.user?.loginId||e.loginId||'',
         dept:e.department||'—',
-        designation:e.jobTitle||'—',
-        join:e.dateOfJoining?new Date(e.dateOfJoining).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}):'—'
+        designation:e.designation||'—',
+        join:e.joinDate?new Date(e.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}):'—'
       }))
       if(list.length>0) setEmployees(list)
     }).catch(()=>{})
   },[])
 
-  const empList=employees.length>0?employees:MOCK_EMPS
+  const empList=employees
 
-  const handleGenerate=()=>{
-    setLoading(true); setGenerated(false)
-    setTimeout(()=>{ setLoading(false); setGenerated(true) },600)
+  const handleGenerate=async()=>{
+    if(!selEmp || !selYear) return
+    setLoading(true); setReportData(null)
+    try {
+      const res = await api.get(`/reports/salary-statement?employeeId=${selEmp}&year=${selYear}`)
+      setReportData(res.data)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to generate report')
+    } finally {
+      setLoading(false)
+    }
   }
-  const handleReset=()=>{ setSelEmp(null); setSelYear(null); setGenerated(false); setLoading(false) }
-
-  const selEmpObj=empList.find(e=>(e.id||e.code)===selEmp)||null
+  const handleReset=()=>{ setSelEmp(null); setSelYear(null); setReportData(null); setLoading(false) }
 
   return(
     <div style={{display:'flex',minHeight:'100vh',background:T.bg,fontFamily:'inherit',colorScheme:'light'}}>
@@ -395,17 +376,17 @@ export default function Reports(){
             onGenerate={handleGenerate}
             onReset={handleReset}
             loading={loading}
-            generated={generated}
-            selEmp={selEmp} setSelEmp={e=>{setSelEmp(e);if(generated)setTimeout(()=>{setLoading(false);setGenerated(true)},400)}}
-            selYear={selYear} setSelYear={y=>{setSelYear(y);if(generated)setTimeout(()=>{setLoading(false);setGenerated(true)},400)}}
+            generated={!!reportData}
+            selEmp={selEmp} setSelEmp={setSelEmp}
+            selYear={selYear} setSelYear={setSelYear}
           />
 
           {/* Right: preview */}
           <div style={{flex:1,minWidth:320}}>
             {loading && <ReportSkeleton/>}
-            {!loading && !generated && <div style={{...card_s(),overflow:'hidden'}}><EmptyState/></div>}
-            {!loading && generated && selEmpObj && selYear && (
-              <PrintPreview emp={selEmpObj} year={selYear}/>
+            {!loading && !reportData && <div style={{...card_s(),overflow:'hidden'}}><EmptyState/></div>}
+            {!loading && reportData && (
+              <PrintPreview data={reportData}/>
             )}
           </div>
         </div>

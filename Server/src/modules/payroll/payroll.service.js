@@ -24,21 +24,36 @@ async function countAttendanceDays(employeeId, periodStart, periodEnd, statuses)
   })
 }
 
-/** Count approved leave days of a given type in the period */
+/** Count approved leave days of a given type that overlap with [periodStart, periodEnd] */
 async function countApprovedLeaveDays(employeeId, periodStart, periodEnd, leaveType) {
+  const pStart = toUTCDay(periodStart)
+  const pEnd   = toUTCDay(periodEnd)
+
   const requests = await prisma.leaveRequest.findMany({
     where: {
       employeeId,
       status: 'APPROVED',
       leaveType,
       AND: [
-        { startDate: { lte: toUTCDay(periodEnd) } },
-        { endDate:   { gte: toUTCDay(periodStart) } },
+        { startDate: { lte: pEnd } },
+        { endDate:   { gte: pStart } },
       ],
     },
+    select: { startDate: true, endDate: true },
   })
-  // Sum totalDays (already pre-calculated as working days)
-  return requests.reduce((a, r) => a + r.totalDays, 0)
+
+  // Clamp each request to the payrun window and count working days in the overlap
+  let total = 0
+  for (const r of requests) {
+    const overlapStart = r.startDate > pStart ? r.startDate : pStart
+    const overlapEnd   = r.endDate   < pEnd   ? r.endDate   : pEnd
+    // Count Mon-Fri days in the overlap range
+    for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay()
+      if (day !== 0 && day !== 6) total++
+    }
+  }
+  return total
 }
 
 // ─── Payrun CRUD ──────────────────────────────────────────────────────────────
@@ -353,12 +368,12 @@ async function getEmployeeCountChart(year) {
     const start = new Date(yr, m, 1)
     const end   = new Date(yr, m + 1, 0)
 
-    const count = await prisma.payslip.count({
-      where: {
-        periodStart: { gte: start, lte: end },
-      },
+    // Count distinct employees who appear in payslips this month
+    const grouped = await prisma.payslip.groupBy({
+      by: ['employeeId'],
+      where: { periodStart: { gte: start, lte: end } },
     })
-    result.push({ month: MONTHS[m], count })
+    result.push({ month: MONTHS[m], count: grouped.length })
   }
   return result
 }

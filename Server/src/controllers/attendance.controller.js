@@ -200,10 +200,13 @@ const getDayAttendance = async (req, res, next) => {
       orderBy: { checkIn: 'asc' },
     });
 
-    // Count stats for the day
-    const present  = records.filter(r => r.status === 'PRESENT').length;
-    const halfDay  = records.filter(r => r.status === 'HALF_DAY').length;
-    const absent   = records.filter(r => r.status === 'ABSENT').length;
+      // Count stats — employees with no record count as absent
+    const totalEmployees = await prisma.employee.count({ where: { user: { isActive: true } } })
+    const present  = records.filter(r => r.status === 'PRESENT').length
+    const halfDay  = records.filter(r => r.status === 'HALF_DAY').length
+    const onLeave  = records.filter(r => r.status === 'ON_LEAVE').length
+    // Employees not in the records table at all are absent
+    const absent   = totalEmployees - present - halfDay - onLeave
 
     // Format records
     const formatted = records.map(r => ({
@@ -226,7 +229,7 @@ const getDayAttendance = async (req, res, next) => {
     res.json({
       date,
       attendees: formatted,
-      summary: { present, halfDay, absent, total: records.length },
+      summary: { present, halfDay, absent: Math.max(0, absent), onLeave, total: totalEmployees },
     });
   } catch (error) { next(error); }
 };
