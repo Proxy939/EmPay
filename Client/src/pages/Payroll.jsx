@@ -143,14 +143,23 @@ function DashboardTab() {
         const annCost = cTrend.map(c => ({ m: c.month, v: c.employerCost }))
         const annCount = eTrend.map(c => ({ m: c.month, v: c.count }))
         
-        const cmIdx = new Date().getMonth()
+        let cmIdx = new Date().getMonth()
+        if (cTrend[cmIdx] && cTrend[cmIdx].employerCost === 0) {
+          for (let i = cmIdx; i >= 0; i--) {
+            if (cTrend[i] && cTrend[i].employerCost > 0) {
+              cmIdx = i
+              break
+            }
+          }
+        }
+        
         const pmIdx = cmIdx === 0 ? 0 : cmIdx - 1
         
         const currC = cTrend[cmIdx] || { grossPayroll: 0, employerCost: 0 }
         const prevC = cTrend[pmIdx] || { grossPayroll: 0, employerCost: 0 }
         
-        const mpDiff = prevC.grossPayroll ? ((currC.grossPayroll - prevC.grossPayroll) / prevC.grossPayroll) * 100 : 0
-        const tcDiff = prevC.employerCost ? ((currC.employerCost - prevC.employerCost) / prevC.employerCost) * 100 : 0
+        const mpDiff = prevC.grossPayroll ? ((currC.grossPayroll - prevC.grossPayroll) / prevC.grossPayroll) * 100 : (currC.grossPayroll > 0 ? 100 : 0)
+        const tcDiff = prevC.employerCost ? ((currC.employerCost - prevC.employerCost) / prevC.employerCost) * 100 : (currC.employerCost > 0 ? 100 : 0)
         
         const currCount = annCount[cmIdx]?.v || 0
 
@@ -409,8 +418,10 @@ const STEPS = ['New Payslip', 'Compute', 'Validate', 'Done']
 
 function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
   const [step, setStep] = useState(1)
-  const earnings = payslip.components?.filter(c => c.type === 'EARNING') || []
-  const deductions = payslip.components?.filter(c => c.type === 'DEDUCTION') || []
+  let comps = typeof payslip.components === 'string' ? JSON.parse(payslip.components) : payslip.components
+  if (!Array.isArray(comps)) comps = []
+  const earnings = comps.filter(c => c.type === 'EARNING') || []
+  const deductions = comps.filter(c => c.type === 'DEDUCTION') || []
   const gross = payslip.grossAmount || 0
   const net = payslip.netAmount || 0
   const empName = payslip.employee ? `${payslip.employee.firstName} ${payslip.employee.lastName}` : 'Employee'
@@ -560,8 +571,10 @@ function PayslipDetailModal({ payslip, payrun, onClose, onPrint }) {
 
 /* ── PDF PREVIEW ────────────────────────────────── */
 function PDFPreview({ payslip, payrun, onClose }) {
-  const earnings = payslip.components?.filter(c => c.type === 'EARNING') || []
-  const deductions = payslip.components?.filter(c => c.type === 'DEDUCTION') || []
+  let comps = typeof payslip.components === 'string' ? JSON.parse(payslip.components) : payslip.components
+  if (!Array.isArray(comps)) comps = []
+  const earnings = comps.filter(c => c.type === 'EARNING') || []
+  const deductions = comps.filter(c => c.type === 'DEDUCTION') || []
   const gross = payslip.grossAmount || 0
   const net = payslip.netAmount || 0
   const empName = payslip.employee ? `${payslip.employee.firstName} ${payslip.employee.lastName}` : 'Employee'
