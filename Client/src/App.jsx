@@ -57,8 +57,12 @@ function App() {
         {/* Default redirects */}
         <Route path="/employees-list" element={<ProtectedRoute><ComingSoon title="Employees Grid" /></ProtectedRoute>} />
         <Route path="/help"    element={<ProtectedRoute><ComingSoon title="Help" /></ProtectedRoute>} />
-        {/* Root → Next.js landing page (port 4028) → Get Started → 5173/login */}
-        <Route path="/"  element={<ExternalRedirect to="http://localhost:4028" />} />
+        {/* Root → Landing page (env-driven) → Get Started → /login */}
+        <Route path="/"  element={
+          import.meta.env.VITE_LANDING_URL
+            ? <ExternalRedirect to={import.meta.env.VITE_LANDING_URL} />
+            : <Navigate to="/login" replace />
+        } />
         <Route path="*"  element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
