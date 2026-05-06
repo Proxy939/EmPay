@@ -27,13 +27,16 @@ export default function Login() {
       const payload = identifier.includes('@')
         ? { email: identifier.trim(), password }
         : { loginId: identifier.trim().toUpperCase(), password }
-
-      const { data } = await api.post('/auth/login', payload)
+        // Log the resolved request URL & payload for easier debugging
+        console.debug('Login request ->', api.defaults.baseURL + '/auth/login', payload)
+        const { data } = await api.post('/auth/login', payload)
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
       navigate(data.mustChangePassword ? '/change-password' : '/dashboard')
     } catch (err) {
-      setError(err.response?.data?.message ?? 'Invalid credentials. Please try again.')
+        console.error('Login error', err)
+        const msg = err.response?.data?.message ?? err.message ?? 'Invalid credentials. Please try again.'
+        setError(msg)
     } finally {
       setLoading(false)
     }
